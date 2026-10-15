@@ -11,6 +11,19 @@ A Monitor plugin for [OpenCode](https://opencode.ai) — background process moni
 - **stderr Separation**: stderr is logged to `/tmp/sentinel-{id}-stderr.log`
 - **Auto Cleanup**: All processes are terminated on session end or plugin unload
 
+## Compatibility
+
+opencode-sentinel supports both OpenCode **V1** and **V2** from a single package via a dual entrypoint.
+
+| OpenCode | Plugin entrypoint | Status |
+|---|---|---|
+| V1 `>=1.18.29` | object form: `server(input)` | Supported |
+| V2 `2.0.x` | object form: `setup(ctx)` | Supported |
+
+The default export declares both `setup` (V2) and `server` (V1). On V1 hosts the V1 implementation is imported lazily, so no V2-only packages are needed; on V2 hosts neither the V1 packages (`@opencode-ai/plugin`, `@opencode-ai/sdk`) nor `zod` are needed.
+
+> **Note:** OpenCode V1 hosts older than 1.18.29 expect a **function** default export and are not supported by 0.2.0. If you are on such a version, stay on 0.1.x or upgrade OpenCode.
+
 ## Installation
 
 Add to your `opencode.json`:
@@ -53,7 +66,7 @@ The agent will call the appropriate tools:
 | `sentinel_stop` | Stop a monitor by ID |
 | `sentinel_list` | List all running monitors |
 | `sentinel_ping` | Health check — returns "pong" |
-| `sentinel_spike` | Spike test — 3-second delayed steer delivery |
+| `sentinel_spike` | Spike test — 3-second delayed steer delivery (V1 only) |
 
 ### Important: grep requires `--line-buffered`
 
@@ -119,8 +132,8 @@ Why steer:
 ## Tech Stack
 
 - TypeScript (strict)
-- @opencode-ai/plugin (v1 Hooks API)
-- @opencode-ai/sdk/v2 (steer delivery)
+- OpenCode V2 plugin API (`setup(ctx)`) and V1 Hooks API (`server`)
+- @opencode-ai/plugin / @opencode-ai/sdk/v2 (V1 path only)
 - Bun / Node.js compatible
 
 ## License

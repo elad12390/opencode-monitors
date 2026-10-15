@@ -14,6 +14,7 @@ function mockEntry(overrides: Partial<MonitorEntry> = {}): MonitorEntry {
     command: "echo hello",
     startedAt: new Date().toISOString(),
     linesEmitted: 0,
+    sessionID: "ses_test",
     ...overrides,
   }
 }
@@ -134,6 +135,24 @@ describe("MonitorManager", () => {
       mgr.start(mockEntry())
       mgr.dispose()
       expect(() => mgr.dispose()).not.toThrow()
+    })
+  })
+
+  describe("disposeSession", () => {
+    test("stops only monitors owned by the given session", () => {
+      mgr.start(mockEntry({ id: "mon_a", sessionID: "ses_a" }))
+      mgr.start(mockEntry({ id: "mon_b", sessionID: "ses_b" }))
+
+      mgr.disposeSession("ses_a")
+
+      expect(mgr.get("mon_a")).toBeUndefined()
+      expect(mgr.get("mon_b")).toBeDefined()
+    })
+
+    test("is a no-op for an unknown session", () => {
+      mgr.start(mockEntry({ id: "mon_a", sessionID: "ses_a" }))
+      expect(() => mgr.disposeSession("ses_missing")).not.toThrow()
+      expect(mgr.get("mon_a")).toBeDefined()
     })
   })
 })

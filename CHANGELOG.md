@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-10-16
+
+### Added
+- **OpenCode V2 support via a dual entrypoint** ([Issue #20](https://github.com/tsukimiya/opencode-sentinel/issues/20)). The plugin's default export now provides both `setup(ctx)` (V2 plugin API) and `server(input)` (V1 Hooks API), so a single package runs on OpenCode V1 and V2.
+  - V2: tools are registered through `ctx.tool.transform`; notifications are delivered with `ctx.session.prompt({ delivery: "steer" })`.
+  - V1: unchanged Hooks API; the V1 implementation is imported lazily by `server()` so a V2 host never has to resolve V1-only packages.
+
+### Changed
+- Monitor core (validation, spawn, batching, flood/`until` handling) is now shared by both entrypoints (`src/lib/core.ts`); the host-specific delivery is injected as a `deliver` function.
+- `@opencode-ai/plugin` / `@opencode-ai/sdk` peer dependencies are marked optional — they are only required on the V1 path. A V2 host needs neither them nor `zod`.
+
+### Test Coverage
+- New `test/core.test.ts` covering monitor start/stop/list and `filter`/`until` regex validation.
+- `test/watcher.test.ts` updated for the injected `deliver` contract.
+- Live E2E on OpenCode V2 (2.0.29): tool registration, steer delivery on an idle session, and `sentinel_list` / `sentinel_stop`.
+
 ## [0.1.5] - 2026-08-02
 
 ### Added
@@ -54,6 +70,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tools: `sentinel_monitor`, `sentinel_stop`, `sentinel_list`, `sentinel_ping`, `sentinel_spike`.
 - Features: 200ms batching, flood protection (100 lines/sec auto-kill), stderr separation, auto cleanup on session end.
 
+[0.2.0]: https://github.com/tsukimiya/opencode-sentinel/releases/tag/v0.2.0
 [0.1.5]: https://github.com/tsukimiya/opencode-sentinel/releases/tag/v0.1.5
 [0.1.4]: https://github.com/tsukimiya/opencode-sentinel/releases/tag/v0.1.4
 [0.1.3]: https://github.com/tsukimiya/opencode-sentinel/releases/tag/v0.1.3

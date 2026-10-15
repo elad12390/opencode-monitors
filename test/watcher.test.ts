@@ -42,24 +42,19 @@ const startWatcher = watcherModule.startWatcher
 
 describe("startWatcher", () => {
   let manager: MonitorManager
-  let promptCalls: Array<any>
-  let v2Client: any
+  let deliverCalls: string[]
+  let deliver: (text: string) => Promise<void>
   let mockProc: EventEmitter
   let mockStdout: EventEmitter
   let mockStderr: EventEmitter
 
   beforeEach(() => {
     manager = new MonitorManager()
-    promptCalls = []
+    deliverCalls = []
     appendFileSyncCalls.length = 0
     spawnCalls.length = 0
-    v2Client = {
-      session: {
-        prompt: async (params: any) => {
-          promptCalls.push(params)
-          return {}
-        },
-      },
+    deliver = async (text: string) => {
+      deliverCalls.push(text)
     }
     const fresh = createMockProc()
     currentMock = fresh
@@ -77,7 +72,7 @@ describe("startWatcher", () => {
       id: "mon_test",
       command: "echo hello",
       sessionID: "ses_123",
-      v2Client,
+      deliver,
       manager,
     })
     expect(proc).toBe(mockProc)
@@ -88,7 +83,7 @@ describe("startWatcher", () => {
       id: "mon_env",
       command: 'echo "$SENTINEL_SESSION_ID"',
       sessionID: "ses_env_test",
-      v2Client,
+      deliver,
       manager,
     })
 
@@ -98,7 +93,7 @@ describe("startWatcher", () => {
     )
   })
 
-  test("batches multiple lines within 200ms into single prompt", async () => {
+  test("batches multiple lines within 200ms into single deliver call", async () => {
     manager.start({
       id: "mon_batch",
       proc: mockProc as any,
@@ -106,21 +101,22 @@ describe("startWatcher", () => {
       command: "test",
       startedAt: new Date().toISOString(),
       linesEmitted: 0,
+      sessionID: "ses_123",
     })
 
     startWatcher({
       id: "mon_batch",
       command: "test",
       sessionID: "ses_123",
-      v2Client,
+      deliver,
       manager,
     })
 
     mockStdout.emit("data", Buffer.from("line1\nline2\nline3\n"))
     await new Promise((r) => setTimeout(r, 250))
 
-    expect(promptCalls.length).toBe(1)
-    const text = promptCalls[0].parts[0].text
+    expect(deliverCalls.length).toBe(1)
+    const text = deliverCalls[0]
     expect(text).toContain("line1")
     expect(text).toContain("line2")
     expect(text).toContain("line3")
@@ -134,13 +130,14 @@ describe("startWatcher", () => {
       command: "test",
       startedAt: new Date().toISOString(),
       linesEmitted: 0,
+      sessionID: "ses_123",
     })
 
     startWatcher({
       id: "mon_sep",
       command: "test",
       sessionID: "ses_123",
-      v2Client,
+      deliver,
       manager,
     })
 
@@ -150,7 +147,7 @@ describe("startWatcher", () => {
     mockStdout.emit("data", Buffer.from("line2\n"))
     await new Promise((r) => setTimeout(r, 250))
 
-    expect(promptCalls.length).toBe(2)
+    expect(deliverCalls.length).toBe(2)
   })
 
   test("writes stderr to /tmp/sentinel-{id}-stderr.log", () => {
@@ -158,7 +155,7 @@ describe("startWatcher", () => {
       id: "mon_stderr",
       command: "test",
       sessionID: "ses_123",
-      v2Client,
+      deliver,
       manager,
     })
 
@@ -176,18 +173,18 @@ describe("startWatcher", () => {
       id: "mon_exit",
       command: "test",
       sessionID: "ses_123",
-      v2Client,
+      deliver,
       manager,
     })
 
     mockProc.emit("exit", 1)
     await new Promise((r) => setTimeout(r, 50))
 
-    const exitCall = promptCalls.find((p) =>
-      p.parts[0].text.includes("exited unexpectedly"),
+    const exitCall = deliverCalls.find((t) =>
+      t.includes("exited unexpectedly"),
     )
     expect(exitCall).toBeDefined()
-    expect(exitCall!.parts[0].text).toContain("code 1")
+    expect(exitCall!).toContain("code 1")
   })
 
   test("does NOT notify on normal exit (code 0)", async () => {
@@ -195,17 +192,17 @@ describe("startWatcher", () => {
       id: "mon_normal",
       command: "test",
       sessionID: "ses_123",
-      v2Client,
+      deliver,
       manager,
     })
 
-    promptCalls.length = 0
+    deliverCalls.length = 0
 
     mockProc.emit("exit", 0)
     await new Promise((r) => setTimeout(r, 50))
 
-    const exitCall = promptCalls.find((p) =>
-      p.parts[0].text.includes("exited unexpectedly"),
+    const exitCall = deliverCalls.find((t) =>
+      t.includes("exited unexpectedly"),
     )
     expect(exitCall).toBeUndefined()
   })
@@ -231,7 +228,7 @@ describe("startWatcher", () => {
         id: "mon_flood",
         command: "test",
         sessionID: "ses_123",
-        v2Client,
+        deliver,
         manager,
       })
 
@@ -239,8 +236,8 @@ describe("startWatcher", () => {
       mockStdout.emit("data", Buffer.from(lines + "\n"))
 
       expect(killCalls.length).toBeGreaterThan(0)
-      const floodCall = promptCalls.find((p) =>
-        p.parts[0].text.includes("FLOOD DETECTED"),
+      const floodCall = deliverCalls.find((t) =>
+        t.includes("FLOOD DETECTED"),
       )
       expect(floodCall).toBeDefined()
     } finally {
@@ -256,13 +253,14 @@ describe("startWatcher", () => {
       command: "test",
       startedAt: new Date().toISOString(),
       linesEmitted: 0,
+      sessionID: "ses_123",
     })
 
     startWatcher({
       id: "mon_filter",
       command: "test",
       sessionID: "ses_123",
-      v2Client,
+      deliver,
       manager,
       filter: "ERROR",
     })
@@ -270,7 +268,7 @@ describe("startWatcher", () => {
     mockStdout.emit("data", Buffer.from("INFO ok\nERROR bad\nWARN meh\nERROR more\n"))
     await new Promise((r) => setTimeout(r, 250))
 
-    const notifiedText = promptCalls.map((p) => p.parts[0].text).join("\n")
+    const notifiedText = deliverCalls.join("\n")
     expect(notifiedText).toContain("ERROR bad")
     expect(notifiedText).toContain("ERROR more")
     expect(notifiedText).not.toContain("INFO ok")
@@ -298,7 +296,7 @@ describe("startWatcher", () => {
         id: "mon_until",
         command: "test",
         sessionID: "ses_123",
-        v2Client,
+        deliver,
         manager,
         until: "DONE",
       })
@@ -309,13 +307,13 @@ describe("startWatcher", () => {
       expect(killCalls.some(([, s]) => s === "SIGTERM")).toBe(true)
       expect(manager.get("mon_until")).toBeUndefined()
 
-      const untilCall = promptCalls.find((p) =>
-        p.parts[0].text.includes("UNTIL MATCHED"),
+      const untilCall = deliverCalls.find((t) =>
+        t.includes("UNTIL MATCHED"),
       )
       expect(untilCall).toBeDefined()
-      expect(untilCall!.parts[0].text).toContain("DONE")
+      expect(untilCall!).toContain("DONE")
 
-      const notifiedText = promptCalls.map((p) => p.parts[0].text).join("\n")
+      const notifiedText = deliverCalls.join("\n")
       expect(notifiedText).toContain("DONE")
       expect(notifiedText).not.toContain("post")
     } finally {
@@ -344,7 +342,7 @@ describe("startWatcher", () => {
         id: "mon_both",
         command: "test",
         sessionID: "ses_123",
-        v2Client,
+        deliver,
         manager,
         filter: "ERROR",
         until: "DONE",
@@ -355,13 +353,45 @@ describe("startWatcher", () => {
 
       expect(killCalls.some(([, s]) => s === "SIGTERM")).toBe(true)
 
-      const notifiedText = promptCalls.map((p) => p.parts[0].text).join("\n")
+      const notifiedText = deliverCalls.join("\n")
       expect(notifiedText).toContain("ERROR DONE")
       expect(notifiedText).not.toContain("DONE ignored")
       expect(notifiedText).not.toContain("INFO ignore")
       expect(notifiedText).not.toContain("post")
     } finally {
       process.kill = origKill
+    }
+  })
+
+  test("deliver rejection is logged and does not stop the watcher", async () => {
+    const errors: unknown[][] = []
+    const origError = console.error
+    console.error = (...args: unknown[]) => {
+      errors.push(args)
+    }
+    try {
+      const failing = async () => {
+        throw new Error("deliver boom")
+      }
+      startWatcher({
+        id: "mon_reject",
+        command: "test",
+        sessionID: "ses_123",
+        deliver: failing,
+        manager,
+      })
+
+      mockStdout.emit("data", Buffer.from("line1\n"))
+      await new Promise((r) => setTimeout(r, 250))
+      expect(errors.length).toBe(1)
+      expect(String(errors[0][1])).toContain("deliver boom")
+
+      // A later line still reaches the watcher despite the earlier rejection.
+      mockStdout.emit("data", Buffer.from("line2\n"))
+      await new Promise((r) => setTimeout(r, 250))
+      expect(errors.length).toBe(2)
+    } finally {
+      console.error = origError
     }
   })
 })

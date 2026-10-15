@@ -7,6 +7,7 @@ export interface MonitorEntry {
   command: string
   startedAt: string
   linesEmitted: number
+  sessionID: string
   filter?: string
   until?: string
 }
@@ -29,11 +30,8 @@ export class MonitorManager {
     return entry.id
   }
 
-  stop(id: string): void {
-    const entry = this.entries.get(id)
-    if (!entry) {
-      throw new Error(`Monitor not found: ${id}`)
-    }
+  /** Sends SIGTERM to the entry's process group, ignoring an already-dead process. */
+  private kill(entry: MonitorEntry): void {
     if (entry.proc.pid) {
       try {
         process.kill(-entry.proc.pid, "SIGTERM")
@@ -41,6 +39,14 @@ export class MonitorManager {
         // Process may already be dead
       }
     }
+  }
+
+  stop(id: string): void {
+    const entry = this.entries.get(id)
+    if (!entry) {
+      throw new Error(`Monitor not found: ${id}`)
+    }
+    this.kill(entry)
     this.entries.delete(id)
   }
 
@@ -67,15 +73,19 @@ export class MonitorManager {
     }
   }
 
+  /** Stops only the monitors owned by `sessionID`, leaving other sessions' monitors running. */
+  disposeSession(sessionID: string): void {
+    for (const [id, entry] of this.entries) {
+      if (entry.sessionID !== sessionID) continue
+      this.kill(entry)
+      this.entries.delete(id)
+    }
+  }
+
+  /** Stops every monitor. Reserved for plugin unload. */
   dispose(): void {
     for (const entry of this.entries.values()) {
-      if (entry.proc.pid) {
-        try {
-          process.kill(-entry.proc.pid, "SIGTERM")
-        } catch {
-          // Process may already be dead
-        }
-      }
+      this.kill(entry)
     }
     this.entries.clear()
   }

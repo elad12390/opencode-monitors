@@ -11,6 +11,19 @@ opencode 用の Monitor プラグイン。バックグラウンドプロセス�
 - **stderr 分離**: stderr は `/tmp/sentinel-{id}-stderr.log` に記録
 - **クリーンアップ**: セッション終了・プラグインアンロード時に全プロセスを自動停止
 
+## 対応バージョン
+
+opencode-sentinel は単一パッケージで OpenCode **V1** と **V2** の両方をサポートします（デュアルエントリポイント）。
+
+| OpenCode | プラグインのエントリポイント | 状態 |
+|---|---|---|
+| V1 `>=1.18.29` | オブジェクト形式: `server(input)` | 対応 |
+| V2 `2.0.x` | オブジェクト形式: `setup(ctx)` | 対応 |
+
+デフォルトエクスポートが `setup`（V2）と `server`（V1）の両方を提供します。V1 環境では V1 実装を遅延 import するため V2 専用パッケージは不要です。V2 環境では V1 パッケージ（`@opencode-ai/plugin` / `@opencode-ai/sdk`）も `zod` も不要です。
+
+> **注意:** OpenCode V1 の `1.18.29` 未満は**関数**形式のデフォルトエクスポートを要求するため、0.2.0 ではサポートしません。該当バージョンを使っている場合は 0.1.x のままにするか、OpenCode をアップグレードしてください。
+
 ## インストール
 
 ```json
@@ -40,6 +53,8 @@ sentinel_monitor で /var/log/app.log の ERROR 行を監視して
 - `sentinel_monitor` — 監視開始（コマンド + 説明ラベル）
 - `sentinel_stop` — 指定した monitor を停止
 - `sentinel_list` — 実行中の monitor 一覧
+- `sentinel_ping` — ヘルスチェック（"pong" を返す）
+- `sentinel_spike` — スパイクテスト（3 秒遅延の steer 配信、V1 専用）
 
 ### grep を使う場合の注意
 
@@ -105,6 +120,6 @@ steer を選択している理由：
 ## 技術スタック
 
 - TypeScript (strict)
-- @opencode-ai/plugin (v1 Hooks API)
-- @opencode-ai/sdk/v2 (steer 送信用)
+- OpenCode V2 プラグイン API（`setup(ctx)`）と V1 Hooks API（`server`）
+- @opencode-ai/plugin / @opencode-ai/sdk/v2（V1 経路のみ）
 - Bun / Node.js 互換

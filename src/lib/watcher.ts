@@ -1,13 +1,15 @@
 import { spawn, type ChildProcess } from "node:child_process"
 import fs from "node:fs"
-import type { OpencodeClient } from "@opencode-ai/sdk/v2"
 import type { MonitorManager } from "./manager"
+
+/** Delivers a notification string to the monitored session. */
+export type Deliver = (text: string) => Promise<void>
 
 export function startWatcher(params: {
   id: string
   command: string
   sessionID: string
-  v2Client: OpencodeClient
+  deliver: Deliver
   manager: MonitorManager
   filter?: string
   until?: string
@@ -29,30 +31,17 @@ export function startWatcher(params: {
   const lineTimestamps: number[] = []
   const MAX_LINES_PER_SEC = 100
 
-  // Send a notification as a regular session message (parts route).
-  // The v2 prompt/delivery API only feeds an already-running agent loop —
-  // on an idle session the input is admitted but never promoted, so the
-  // message route is the only delivery that works in every session state.
+  // Notifications go through the injected `deliver` function so the watcher is
+  // agnostic to the host API version. V1 delivers via the parts/message route
+  // (the only route that wakes an idle session there); V2 delivers with an
+  // explicit `delivery: "steer"` prompt. The adapter throws on failure.
   function notify(text: string, label: string): Promise<void> {
-    return params.v2Client.session
-      .prompt({
-        sessionID: params.sessionID,
-        parts: [{ type: "text", text }],
-      })
-      .then((result: { error?: unknown }) => {
-        if (result.error) {
-          console.error(
-            `[sentinel] ${label} notify failed for ${params.id}:`,
-            result.error,
-          )
-        }
-      })
-      .catch((err: unknown) => {
-        console.error(
-          `[sentinel] ${label} notify failed for ${params.id}:`,
-          err,
-        )
-      })
+    return params.deliver(text).catch((err: unknown) => {
+      console.error(
+        `[sentinel] ${label} notify failed for ${params.id}:`,
+        err,
+      )
+    })
   }
 
   function flushBatch() {

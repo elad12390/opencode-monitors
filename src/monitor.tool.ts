@@ -1,8 +1,6 @@
 import { tool } from "@opencode-ai/plugin"
 import { z } from "zod"
-import { manager } from "./lib/manager"
-import { startWatcher } from "./lib/watcher"
-import { generateId, timestamp } from "./lib/util"
+import { startMonitor } from "./lib/core"
 import description from "./monitor.txt" with { type: "text" }
 
 export function createMonitorTool(v2Client: any) {
@@ -33,42 +31,31 @@ export function createMonitorTool(v2Client: any) {
         ),
     },
     async execute(args, ctx) {
-      if (args.filter) {
-        try {
-          new RegExp(args.filter)
-        } catch (e: any) {
-          return `Invalid filter regex: ${e.message}`
+      const sessionID = ctx.sessionID
+      // V1 delivers via the parts/message route: on V1 the steer delivery is
+      // admitted but never promoted on an idle session, so only this route
+      // reaches the session in every state.
+      const deliver = async (text: string) => {
+        const result = await v2Client.session.prompt({
+          sessionID,
+          parts: [{ type: "text", text }],
+        })
+        if (result?.error) {
+          throw new Error(
+            typeof result.error === "string"
+              ? result.error
+              : JSON.stringify(result.error),
+          )
         }
       }
-      if (args.until) {
-        try {
-          new RegExp(args.until)
-        } catch (e: any) {
-          return `Invalid until regex: ${e.message}`
-        }
-      }
-
-      const id = generateId()
-      const proc = startWatcher({
-        id,
+      return startMonitor({
         command: args.command,
-        sessionID: ctx.sessionID,
-        v2Client,
-        manager,
-        filter: args.filter,
-        until: args.until,
-      })
-      manager.start({
-        id,
-        proc,
         description: args.description,
-        command: args.command,
-        startedAt: timestamp(),
-        linesEmitted: 0,
         filter: args.filter,
         until: args.until,
+        sessionID,
+        deliver,
       })
-      return `Monitor started: ${id}\nCommand: ${args.command}\nUse sentinel_stop to stop it.`
     },
   })
 }

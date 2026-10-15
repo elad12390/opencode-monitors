@@ -1,6 +1,6 @@
 {
   "name": "opencode-sentinel",
-  "version": "0.1.5",
+  "version": "0.2.0",
   "type": "module",
   "main": "src/index.ts",
   "files": ["src", "README.md", "README_ja.md", "CHANGELOG.md", "LICENSE"],
@@ -21,6 +21,10 @@
   "peerDependencies": {
     "@opencode-ai/plugin": ">=1.14.34",
     "@opencode-ai/sdk": ">=1.14.34"
+  },
+  "peerDependenciesMeta": {
+    "@opencode-ai/plugin": { "optional": true },
+    "@opencode-ai/sdk": { "optional": true }
   },
   "devDependencies": {
     "@opencode-ai/plugin": "1.17.15",
