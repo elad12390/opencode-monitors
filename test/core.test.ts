@@ -26,7 +26,7 @@ const { manager } = await import("../src/lib/manager")
 const deliver = async () => {}
 
 function startId(result: string): string {
-  const match = result.match(/Monitor started: (\S+)/)
+  const match = result.match(/Started monitor (\S+)/)
   if (!match) throw new Error(`no id in: ${result}`)
   return match[1]
 }
@@ -92,7 +92,7 @@ describe("core", () => {
         deliver,
       })
 
-      expect(result.startsWith("Invalid filter regex:")).toBe(true)
+      expect(result).toStartWith('Did not start the monitor: the filter pattern "(" is not a valid JavaScript regex')
       expect(manager.list().length).toBe(before)
     })
 
@@ -106,7 +106,7 @@ describe("core", () => {
         deliver,
       })
 
-      expect(result.startsWith("Invalid until regex:")).toBe(true)
+      expect(result).toStartWith('Did not start the monitor: the until pattern "[" is not a valid JavaScript regex')
       expect(manager.list().length).toBe(before)
     })
   })
@@ -122,20 +122,42 @@ describe("core", () => {
         }),
       )
 
-      expect(core.stopMonitor(id)).toBe(`Monitor ${id} stopped.`)
+      expect(core.stopMonitor(id)).toBe(`Stopped monitor ${id} "to stop" and killed its command.`)
       expect(manager.get(id)).toBeUndefined()
     })
 
-    test("reports an error for an unknown id", () => {
-      const result = core.stopMonitor("mon_missing")
-      expect(result.startsWith("Error:")).toBe(true)
-      expect(result).toContain("mon_missing")
+    test("finds the monitor by its description, ignoring case", () => {
+      const id = startId(core.startMonitor({ command: "sleep 9", description: "API errors", sessionID: "ses_1", deliver }))
+      expect(core.stopMonitor("  api ERRORS ")).toBe(`Stopped monitor ${id} "API errors" and killed its command.`)
+      expect(manager.get(id)).toBeUndefined()
+    })
+
+    test("stops nothing when two monitors share the description, and lists their IDs", () => {
+      const a = startId(core.startMonitor({ command: "sleep 1", description: "watch", sessionID: "ses_1", deliver }))
+      const b = startId(core.startMonitor({ command: "sleep 2", description: "watch", sessionID: "ses_1", deliver }))
+      const result = core.stopMonitor("watch")
+      expect(result).toBe(
+        `2 running monitors are called "watch"; nothing was stopped. Pass one of their IDs instead:\n- ${a}: sleep 1\n- ${b}: sleep 2`,
+      )
+      expect(manager.get(a)).toBeDefined()
+      expect(manager.get(b)).toBeDefined()
+    })
+
+    test("says which monitors are running when the name matches none", () => {
+      const id = startId(core.startMonitor({ command: "sleep 1", description: "build", sessionID: "ses_1", deliver }))
+      expect(core.stopMonitor("deploy")).toBe(
+        `No running monitor has the ID or description "deploy"; nothing was stopped. Running now:\n- ${id} "build"`,
+      )
+    })
+
+    test("says when nothing is running at all", () => {
+      expect(core.stopMonitor("anything")).toBe("No monitor is running, so there was nothing to stop.")
     })
   })
 
   describe("listMonitors", () => {
     test("reports when nothing is running", () => {
-      expect(core.listMonitors()).toBe("No monitors are currently running.")
+      expect(core.listMonitors()).toBe("No monitors are running.")
     })
 
     test("lists running monitors with their metadata", () => {
@@ -148,10 +170,9 @@ describe("core", () => {
       })
 
       const listed = core.listMonitors()
-      expect(listed).toContain("app log")
-      expect(listed).toContain("tail -f app.log")
-      expect(listed).toContain("filter: ERROR")
-      expect(listed).toContain("lines: 0")
+      expect(listed).toMatch(
+        /^1 monitor is running:\n- mon_\S+ "app log" \(running \d+s, 0 lines printed, filter "ERROR"\)\n {2}\$ tail -f app\.log$/,
+      )
     })
   })
 })

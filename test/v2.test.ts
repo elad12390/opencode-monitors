@@ -157,7 +157,7 @@ describe("v2Setup", () => {
       { command: "echo line", description: "e2e" },
       { sessionID: "ses_v2" },
     )
-    expect(start.content).toContain("Monitor started")
+    expect(start.content).toContain("Started monitor")
 
     currentProc.stdout.emit("data", Buffer.from("HELLO_V2\n"))
     await new Promise((r) => setTimeout(r, 250))
@@ -176,7 +176,7 @@ describe("v2Setup", () => {
       { command: "sleep 1", description: "longjob" },
       { sessionID: "ses_v2" },
     )
-    const id = start.content.match(/Monitor started: (\S+)/)![1]
+    const id = start.content.match(/Started monitor (\S+)/)![1]
 
     const listed = await toolByName(tools, "list_monitors").execute(
       {},
@@ -185,16 +185,16 @@ describe("v2Setup", () => {
     expect(listed.content).toContain("longjob")
 
     const stopped = await toolByName(tools, "stop_monitor").execute(
-      { id },
+      { monitor: "longjob" },
       { sessionID: "ses_v2" },
     )
-    expect(stopped.content).toBe(`Monitor ${id} stopped.`)
+    expect(stopped.content).toBe(`Stopped monitor ${id} "longjob" and killed its command.`)
 
     const after = await toolByName(tools, "list_monitors").execute(
       {},
       { sessionID: "ses_v2" },
     )
-    expect(after.content).toBe("No monitors are currently running.")
+    expect(after.content).toBe("No monitors are running.")
   })
 
   test("disposer aborts the event subscription and cleans up monitors", async () => {
@@ -227,8 +227,8 @@ describe("v2Setup", () => {
       { command: "sleep 1", description: "b" },
       { sessionID: "ses_b" },
     )
-    const idA = a.content.match(/Monitor started: (\S+)/)![1]
-    const idB = b.content.match(/Monitor started: (\S+)/)![1]
+    const idA = a.content.match(/Started monitor (\S+)/)![1]
+    const idB = b.content.match(/Started monitor (\S+)/)![1]
 
     pushEvent({ type: "session.deleted", data: { sessionID: "ses_a" } })
     await new Promise((r) => setTimeout(r, 20))

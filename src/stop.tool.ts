@@ -1,13 +1,14 @@
 import { tool } from "@opencode-ai/plugin"
 import { z } from "zod"
 import { stopMonitor } from "./lib/core"
+import { STOP_MONITOR } from "./tools"
 
 export const stop_monitor = tool({
-  description: "Stop a running monitor by its ID. The monitor process will be terminated and its resources freed.",
+  description: STOP_MONITOR.description,
   args: {
-    id: z.string().describe("The monitor ID to stop (returned by monitor when started)"),
+    monitor: z.string().min(1).describe(STOP_MONITOR.params.monitor),
   },
   async execute(args) {
-    return stopMonitor(args.id)
+    return stopMonitor(args.monitor)
   },
 })

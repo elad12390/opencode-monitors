@@ -2,7 +2,7 @@ import { listMonitors, startMonitor, stopMonitor } from "./lib/core"
 import { manager } from "./lib/manager"
 import { announcePending, recoverMonitors } from "./lib/recovery"
 import { createFileStore, type MonitorStore } from "./lib/state"
-import description from "./monitor.txt" with { type: "text" }
+import { LIST_MONITORS, MONITOR, STOP_MONITOR } from "./tools"
 
 let store: MonitorStore | undefined
 /** One state-file store per process, created on first use so tests can point it elsewhere first. */
@@ -116,29 +116,21 @@ async function registerRpc(ctx: V2Context): Promise<() => void> {
 const MONITOR_INPUT = {
   type: "object",
   properties: {
-    command: {
-      type: "string",
-      description:
-        "Shell command to execute and watch (e.g., 'tail -f /var/log/app.log | grep --line-buffered ERROR')",
-    },
-    description: {
-      type: "string",
-      description: "Human-readable label shown in monitor notifications",
-    },
-    filter: {
-      type: "string",
-      minLength: 1,
-      description:
-        "JavaScript regular expression. Only stdout lines matching this regex are notified; non-matching lines are silently dropped.",
-    },
-    until: {
-      type: "string",
-      minLength: 1,
-      description:
-        'JavaScript regular expression. When a line matches (after filter, if set), the line is notified and the monitor auto-stops. Useful for one-shot wait patterns like "wake me when CI finishes".',
-    },
+    command: { type: "string", minLength: 1, description: MONITOR.params.command },
+    description: { type: "string", minLength: 1, description: MONITOR.params.description },
+    filter: { type: "string", minLength: 1, description: MONITOR.params.filter },
+    until: { type: "string", minLength: 1, description: MONITOR.params.until },
   },
   required: ["command", "description"],
+  additionalProperties: false,
+} as const
+
+const STOP_MONITOR_INPUT = {
+  type: "object",
+  properties: {
+    monitor: { type: "string", minLength: 1, description: STOP_MONITOR.params.monitor },
+  },
+  required: ["monitor"],
   additionalProperties: false,
 } as const
 
@@ -179,8 +171,8 @@ export async function v2Setup(
 
   await ctx.tool.transform((editor) => {
     editor.add({
-      name: "monitor",
-      description,
+      name: MONITOR.name,
+      description: MONITOR.description,
       input: MONITOR_INPUT,
       async execute(input: any, context) {
         const sessionID = context.sessionID
@@ -202,30 +194,17 @@ export async function v2Setup(
     })
 
     editor.add({
-      name: "stop_monitor",
-      description:
-        "Stop a running monitor by its ID. The monitor process will be terminated and its resources freed.",
-      input: {
-        type: "object",
-        properties: {
-          id: {
-            type: "string",
-            description:
-              "The monitor ID to stop (returned by monitor when started)",
-          },
-        },
-        required: ["id"],
-        additionalProperties: false,
-      },
+      name: STOP_MONITOR.name,
+      description: STOP_MONITOR.description,
+      input: STOP_MONITOR_INPUT,
       async execute(input: any) {
-        return { content: stopMonitor(input.id) }
+        return { content: stopMonitor(input.monitor) }
       },
     })
 
     editor.add({
-      name: "list_monitors",
-      description:
-        "List all currently running monitors with their status (ID, description, command, started time, lines emitted).",
+      name: LIST_MONITORS.name,
+      description: LIST_MONITORS.description,
       input: EMPTY_INPUT,
       async execute() {
         return { content: listMonitors() }

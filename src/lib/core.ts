@@ -23,18 +23,12 @@ export interface StartMonitorParams {
  * it with the manager. Returns the tool result string shown to the model.
  */
 export function startMonitor(params: StartMonitorParams): string {
-  if (params.filter) {
+  for (const [name, pattern] of [["filter", params.filter], ["until", params.until]] as const) {
+    if (!pattern) continue
     try {
-      new RegExp(params.filter)
+      new RegExp(pattern)
     } catch (e: any) {
-      return `Invalid filter regex: ${e.message}`
-    }
-  }
-  if (params.until) {
-    try {
-      new RegExp(params.until)
-    } catch (e: any) {
-      return `Invalid until regex: ${e.message}`
+      return `Did not start the monitor: the ${name} pattern ${JSON.stringify(pattern)} is not a valid JavaScript regex (${e.message}). Fix it and try again.`
     }
   }
 
@@ -62,29 +56,61 @@ export function startMonitor(params: StartMonitorParams): string {
     owner: params.owner,
     deliver: params.deliver,
   })
-  return `Monitor started: ${id}\nCommand: ${params.command}\nUse stop_monitor to stop it. You will be told when it ends, including when OpenCode restarts.`
+  const narrowing = [
+    params.filter ? `only lines matching ${JSON.stringify(params.filter)}` : undefined,
+    params.until ? `stopping after a line matches ${JSON.stringify(params.until)}` : undefined,
+  ].filter(Boolean)
+  return [
+    `Started monitor ${id} "${params.description}": ${params.command}`,
+    `Its new output lines will arrive as messages${narrowing.length ? ` (${narrowing.join(", ")})` : ""}, and you will be told when it ends.`,
+    `Stop it with stop_monitor when you no longer need it.`,
+  ].join("\n")
 }
 
-export function stopMonitor(id: string): string {
-  try {
-    manager.stop(id)
-    return `Monitor ${id} stopped.`
-  } catch (err: any) {
-    return `Error: ${err.message}`
+/** Stops the running monitor whose ID or description is `name`. */
+export function stopMonitor(name: string): string {
+  const wanted = name.trim()
+  const running = manager.list()
+  const byID = running.find((m) => m.id === wanted)
+  const byDescription = running.filter((m) => m.description.trim().toLowerCase() === wanted.toLowerCase())
+  const matches = byID ? [byID] : byDescription
+
+  if (matches.length === 1) {
+    const [monitor] = matches
+    manager.stop(monitor.id)
+    return `Stopped monitor ${monitor.id} "${monitor.description}" and killed its command.`
   }
+  if (matches.length > 1) {
+    return `${matches.length} running monitors are called "${wanted}"; nothing was stopped. Pass one of their IDs instead:\n${matches.map((m) => `- ${m.id}: ${m.command}`).join("\n")}`
+  }
+  if (running.length === 0) {
+    return `No monitor is running, so there was nothing to stop.`
+  }
+  return `No running monitor has the ID or description "${wanted}"; nothing was stopped. Running now:\n${running.map((m) => `- ${m.id} "${m.description}"`).join("\n")}`
+}
+
+function age(startedAt: string): string {
+  const seconds = Math.max(0, Math.floor((Date.now() - Date.parse(startedAt)) / 1000))
+  if (seconds < 60) return `${seconds}s`
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes}m ${seconds % 60}s`
+  return `${Math.floor(minutes / 60)}h ${minutes % 60}m`
 }
 
 export function listMonitors(): string {
   const monitors = manager.list()
   if (monitors.length === 0) {
-    return "No monitors are currently running."
+    return "No monitors are running."
   }
-  return monitors
-    .map((m) => {
-      let s = `[${m.id}] ${m.description}\n  command: ${m.command}\n  started: ${m.startedAt}\n  lines: ${m.linesEmitted}`
-      if (m.filter) s += `\n  filter: ${m.filter}`
-      if (m.until) s += `\n  until: ${m.until}`
-      return s
-    })
-    .join("\n\n")
+  const heading = monitors.length === 1 ? "1 monitor is running:" : `${monitors.length} monitors are running:`
+  const entries = monitors.map((m) => {
+    const details = [
+      `running ${age(m.startedAt)}`,
+      `${m.linesEmitted} line${m.linesEmitted === 1 ? "" : "s"} printed`,
+      m.filter ? `filter ${JSON.stringify(m.filter)}` : undefined,
+      m.until ? `until ${JSON.stringify(m.until)}` : undefined,
+    ].filter(Boolean)
+    return `- ${m.id} "${m.description}" (${details.join(", ")})\n  $ ${m.command}`
+  })
+  return [heading, ...entries].join("\n")
 }

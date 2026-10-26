@@ -12,6 +12,6 @@ const result = startMonitor({
   directory: "/work/crash",
   deliver: async () => {},
 })
-const id = result.match(/Monitor started: (\S+)/)![1]
+const id = result.match(/Started monitor (\S+)/)![1]
 console.log(`READY ${id} ${manager.get(id)!.proc!.pid}`)
 setInterval(() => {}, 1_000)

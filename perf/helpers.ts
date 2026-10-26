@@ -39,7 +39,7 @@ export function watch(command: string, options: { filter?: string; until?: strin
       deliveries.push({ at: now(), text })
     },
   })
-  const match = result.match(/Monitor started: (\S+)/)
+  const match = result.match(/Started monitor (\S+)/)
   if (!match) throw new Error(`monitor did not start: ${result}`)
   const id = match[1]
   const pid = manager.get(id)?.proc.pid

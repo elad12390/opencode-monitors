@@ -1,34 +1,16 @@
 import { tool } from "@opencode-ai/plugin"
 import { z } from "zod"
 import { startMonitor } from "./lib/core"
-import description from "./monitor.txt" with { type: "text" }
+import { MONITOR } from "./tools"
 
 export function createMonitorTool(v2Client: any) {
   return tool({
-    description,
+    description: MONITOR.description,
     args: {
-      command: z
-        .string()
-        .describe(
-          "Shell command to execute and watch (e.g., 'tail -f /var/log/app.log | grep --line-buffered ERROR')",
-        ),
-      description: z
-        .string()
-        .describe("Human-readable label shown in monitor notifications"),
-      filter: z
-        .string()
-        .min(1)
-        .optional()
-        .describe(
-          "JavaScript regular expression. Only stdout lines matching this regex are notified; non-matching lines are silently dropped.",
-        ),
-      until: z
-        .string()
-        .min(1)
-        .optional()
-        .describe(
-          'JavaScript regular expression. When a line matches (after filter, if set), the line is notified and the monitor auto-stops. Useful for one-shot wait patterns like "wake me when CI finishes".',
-        ),
+      command: z.string().min(1).describe(MONITOR.params.command),
+      description: z.string().min(1).describe(MONITOR.params.description),
+      filter: z.string().min(1).optional().describe(MONITOR.params.filter),
+      until: z.string().min(1).optional().describe(MONITOR.params.until),
     },
     async execute(args, ctx) {
       const sessionID = ctx.sessionID

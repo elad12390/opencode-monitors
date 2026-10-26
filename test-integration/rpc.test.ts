@@ -57,7 +57,7 @@ afterEach(() => {
 async function startMonitor(command: string) {
   const { startMonitor } = await import("../src/lib/core")
   const result = startMonitor({ command, description: "rpc test", sessionID: "ses_rpc", deliver: async () => {} })
-  return result.match(/Monitor started: (\S+)/)![1]
+  return result.match(/Started monitor (\S+)/)![1]
 }
 
 async function until(condition: () => boolean | Promise<boolean>, ms = 3_000) {
