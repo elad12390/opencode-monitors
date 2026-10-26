@@ -30,10 +30,10 @@
   ],
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "bun test ./test/",
-    "test:perf": "bun test ./perf/ --timeout 60000",
-    "test:tui": "bun test ./test-tui/ --preload @opentui/solid/preload",
-    "test:integration": "bun test ./test-integration/",
+    "test": "bun test ./test/ --preload ./test/preload.ts",
+    "test:perf": "bun test ./perf/ --timeout 60000 --preload ./test/preload.ts",
+    "test:tui": "bun test ./test-tui/ --preload @opentui/solid/preload --preload ./test/preload.ts",
+    "test:integration": "bun test ./test-integration/ --preload ./test/preload.ts",
     "test:all": "bun run test && bun run test:integration && bun run test:tui && bun run test:perf"
   },
   "peerDependencies": {

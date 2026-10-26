@@ -1,11 +1,10 @@
 import { spawn, type ChildProcess } from "node:child_process"
 import fs from "node:fs"
 import { createLineSplitter } from "./lines"
-import type { MonitorManager, StopReason } from "./manager"
+import type { Deliver, MonitorManager, StopReason } from "./manager"
 import { createMatcher, MatchTimeoutError } from "./matcher"
 
-/** Delivers a notification string to the monitored session. */
-export type Deliver = (text: string) => Promise<void>
+export type { Deliver } from "./manager"
 
 export function startWatcher(params: {
   id: string
@@ -65,15 +64,15 @@ export function startWatcher(params: {
     })
   }
 
-  function flushBatch() {
-    if (batchBuffer.length === 0) return
+  function flushBatch(): Promise<void> {
+    if (batchBuffer.length === 0) return Promise.resolve()
     const text = batchBuffer
       .map((line) => `[monitor:${params.id}] ${line}`)
       .join("\n")
     batchBuffer = []
     batchTimer = null
-    // Fire and forget — don't block the stream
-    notify(text, "batch")
+    // Callers on the stream don't wait for it; the exit handler does.
+    return notify(text, "batch")
   }
 
   /** Queues a line that passed the filter, or stops the monitor when it matched `until`. */
@@ -169,24 +168,17 @@ export function startWatcher(params: {
     }
   })
 
+  // The last output reaches the agent before the manager reports how the
+  // command ended (see notices.ts).
   proc.on("exit", async (code, signal) => {
-    params.manager.exited(params.id, code, signal)
     await matching
     matcher?.dispose()
     if (batchTimer) {
       clearTimeout(batchTimer)
       batchTimer = null
     }
-    if (batchBuffer.length > 0) {
-      flushBatch()
-    }
-
-    if (code !== 0 && code !== null) {
-      await notify(
-        `[monitor:${params.id}] process exited unexpectedly with code ${code}`,
-        "exit",
-      )
-    }
+    await flushBatch()
+    params.manager.exited(params.id, code, signal)
   })
 
   return proc

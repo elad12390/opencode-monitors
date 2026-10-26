@@ -69,7 +69,12 @@ afterEach(() => {
   setup = undefined
 })
 
-async function render(source: MonitorSource, notices: string[] = [], size = { width: 140, height: 40 }) {
+async function render(
+  source: MonitorSource,
+  notices: string[] = [],
+  size = { width: 140, height: 40 },
+  scopeProps: { currentDirectory?: string; initialScope?: "all" | "project"; onScopeChange?: (s: any) => void } = {},
+) {
   setup = await testRender(
     () => (
       <MonitorsDialog
@@ -78,6 +83,7 @@ async function render(source: MonitorSource, notices: string[] = [], size = { wi
         pollMs={30}
         now={() => NOW}
         notify={(message) => notices.push(message)}
+        {...scopeProps}
       />
     ),
     size,
@@ -205,6 +211,56 @@ describe("/monitors popup", () => {
     const frame = await frameWhen((f) => f.includes("No monitors yet"))
     expect(frame).toContain("none yet")
     expect(frame).toContain("esc close")
+  })
+
+  test("tab switches between all projects and this project, and remembers the choice", async () => {
+    const scopes: string[] = []
+    const { source } = fakeSource([
+      monitor({ id: "mon_api", description: "API error log", directory: "/work/api" }),
+      monitor({ id: "mon_web", description: "web dev server", directory: "/work/web" }),
+    ])
+    await render(source, [], undefined, {
+      currentDirectory: "/work/api",
+      initialScope: "all",
+      onScopeChange: (scope) => scopes.push(scope),
+    })
+
+    let frame = await frameWhen((f) => f.includes("web dev server"))
+    expect(frame).toContain("All projects")
+    expect(frame).toContain("This project (api)")
+    expect(frame).toContain("2 running")
+    expect(frame).toMatch(/API error log\s+api\s+running/)
+    expect(frame).toMatch(/web dev server\s+web\s+running/)
+    expect(frame).toContain("tab this project")
+
+    setup!.mockInput.pressTab()
+    frame = await frameWhen((f) => !f.includes("web dev server"))
+    expect(frame).toContain("API error log")
+    expect(frame).toContain("1 running")
+    expect(frame).toContain("tab all projects")
+    expect(scopes).toEqual(["project"])
+
+    setup!.mockInput.pressTab()
+    await frameWhen((f) => f.includes("web dev server"))
+    expect(scopes).toEqual(["project", "all"])
+  })
+
+  test("starts in this project when that was the last choice, and says when it has none", async () => {
+    const { source } = fakeSource([monitor({ id: "mon_web", description: "web dev server", directory: "/work/web" })])
+    await render(source, [], undefined, { currentDirectory: "/work/api", initialScope: "project" })
+
+    const frame = await frameWhen((f) => f.includes("No monitors in this project"))
+    expect(frame).toContain("1 monitor in other projects; press tab to see all projects")
+    expect(frame).not.toContain("web dev server")
+  })
+
+  test("a monitor stopped by an OpenCode restart says so, and that its output was not kept", async () => {
+    const { source } = fakeSource([
+      monitor({ status: "stopped", endReason: "restart", restored: true, endedAt: new Date(NOW).toISOString() }),
+    ])
+    await render(source)
+    const frame = await frameWhen((f) => f.includes("OpenCode restarted"))
+    expect(frame).toContain("Output isn't kept across OpenCode restarts.")
   })
 
   test("says when the server plugin can't be reached", async () => {

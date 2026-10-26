@@ -6,13 +6,16 @@ import {
   clock,
   describeError,
   formatCount,
+  inScope,
   logWindow,
+  projectName,
   reselect,
   statusLabel,
   summary,
   timing,
   type LogLine,
   type Monitor,
+  type Scope,
   type Tone,
 } from "./model"
 
@@ -62,12 +65,18 @@ export function MonitorsDialog(props: {
   pollMs?: number
   now?: () => number
   notify?: (message: string, variant: "success" | "error" | "info") => void
+  /** The project the popup was opened in; enables the "This project" scope. */
+  currentDirectory?: string
+  initialScope?: Scope
+  onScopeChange?: (scope: Scope) => void
 }) {
   const dimensions = useTerminalDimensions()
   const now = () => (props.now ?? Date.now)()
   const colors = () => props.palette()
 
-  const [monitors, setMonitors] = createSignal<Monitor[]>([])
+  const [allMonitors, setAllMonitors] = createSignal<Monitor[]>([])
+  const [scope, setScope] = createSignal<Scope>(props.currentDirectory ? (props.initialScope ?? "all") : "all")
+  const monitors = createMemo(() => inScope(allMonitors(), scope(), props.currentDirectory))
   const [loaded, setLoaded] = createSignal(false)
   const [error, setError] = createSignal<string>()
   const [index, setIndex] = createSignal(0)
@@ -92,9 +101,10 @@ export function MonitorsDialog(props: {
     refreshing = true
     try {
       const previous = selected()
-      const next = await props.source.list()
+      const all = await props.source.list()
       if (disposed) return
-      setMonitors(next)
+      const next = inScope(all, scope(), props.currentDirectory)
+      setAllMonitors(all)
       setIndex(reselect(next, previous?.id, index()))
       setError(undefined)
       setLoaded(true)
@@ -138,6 +148,19 @@ export function MonitorsDialog(props: {
     const clamped = Math.min(Math.max(0, next), count - 1)
     if (clamped === index()) return
     setIndex(clamped)
+    setLogs([])
+    setScrollBack(0)
+    setConfirmKill(undefined)
+    void refresh()
+  }
+
+  function toggleScope() {
+    if (!props.currentDirectory) return
+    const next: Scope = scope() === "all" ? "project" : "all"
+    const previous = selected()
+    setScope(next)
+    props.onScopeChange?.(next)
+    setIndex(reselect(monitors(), previous?.id, 0))
     setLogs([])
     setScrollBack(0)
     setConfirmKill(undefined)
@@ -214,6 +237,9 @@ export function MonitorsDialog(props: {
       case "k":
         if (monitor && !key.ctrl && !key.meta) void kill(monitor)
         return
+      case "tab":
+        if (!expanded()) toggleScope()
+        return
     }
   })
 
@@ -232,12 +258,17 @@ export function MonitorsDialog(props: {
     const dot = props.mono ? " - " : " · "
     const arrows = props.mono ? "up/down" : "↑↓"
     if (expanded()) return [`${arrows} scroll`, "pgup/pgdn page", "end follow", "enter back", "esc close"].join(dot)
-    if (monitors().length === 0) return "esc close"
+    const scopeHint = props.currentDirectory
+      ? `tab ${scope() === "all" ? "this project" : "all projects"}`
+      : undefined
+    if (monitors().length === 0) return [scopeHint, "esc close"].filter(Boolean).join(dot)
     const canKill = selected()?.status === "running"
-    return [`${arrows} select`, "enter full logs", canKill ? "k kill" : undefined, "esc close"]
+    return [`${arrows} select`, "enter full logs", canKill ? "k kill" : undefined, scopeHint, "esc close"]
       .filter(Boolean)
       .join(dot)
   })
+
+  const showProject = () => scope() === "all" && allMonitors().some((m) => m.directory !== allMonitors()[0]?.directory)
 
   return (
     <box flexDirection="column" width="100%" paddingLeft={2} paddingRight={2} paddingBottom={1}>
@@ -245,6 +276,24 @@ export function MonitorsDialog(props: {
         <text fg={colors().text} attributes={TextAttributes.BOLD} flexShrink={0}>
           Monitors
         </text>
+        <Show when={props.currentDirectory}>
+          <box flexDirection="row" flexShrink={0} paddingLeft={3} gap={2}>
+            <text
+              fg={scope() === "all" ? colors().text : colors().muted}
+              attributes={scope() === "all" ? TextAttributes.BOLD | TextAttributes.UNDERLINE : undefined}
+              flexShrink={0}
+            >
+              All projects
+            </text>
+            <text
+              fg={scope() === "project" ? colors().text : colors().muted}
+              attributes={scope() === "project" ? TextAttributes.BOLD | TextAttributes.UNDERLINE : undefined}
+              flexShrink={0}
+            >
+              {`This project (${projectName(props.currentDirectory)})`}
+            </text>
+          </box>
+        </Show>
         <box flexGrow={1} />
         <text fg={colors().muted} flexShrink={0}>
           {summary(monitors())}
@@ -260,7 +309,9 @@ export function MonitorsDialog(props: {
 
       <Show when={!error() && loaded() && monitors().length === 0}>
         <text fg={colors().muted} wrapMode="word">
-          No monitors yet. Ask the agent to watch something, for example “tail server.log and tell me when a 5xx shows up”.
+          {scope() === "project" && allMonitors().length > 0
+            ? `No monitors in this project. ${formatCount(allMonitors().length, "monitor")} in other projects; press tab to see all projects.`
+            : "No monitors yet. Ask the agent to watch something, for example “tail server.log and tell me when a 5xx shows up”."}
         </text>
       </Show>
 
@@ -295,7 +346,18 @@ export function MonitorsDialog(props: {
                   >
                     {monitor.description}
                   </text>
-                  <text fg={toneColor(label().tone)} width={21} flexShrink={0} wrapMode="none" truncate>
+                  <Show when={showProject()}>
+                    <text
+                      fg={isSelected() ? colors().text : colors().muted}
+                      width={14}
+                      flexShrink={0}
+                      wrapMode="none"
+                      truncate
+                    >
+                      {projectName(monitor.directory)}
+                    </text>
+                  </Show>
+                  <text fg={toneColor(label().tone)} width={19} flexShrink={0} wrapMode="none" truncate>
                     {label().text}
                   </text>
                   <text fg={isSelected() ? colors().text : colors().muted} width={11} flexShrink={0} wrapMode="none">
@@ -331,6 +393,7 @@ export function MonitorsDialog(props: {
             </text>
             <text fg={colors().faint} height={1} wrapMode="none" truncate>
               {[
+                monitor().directory ? `project ${projectName(monitor().directory)}` : undefined,
                 `started ${clock(monitor().startedAt)}`,
                 monitor().pid ? `pid ${monitor().pid}` : undefined,
                 monitor().filter ? `filter ${monitor().filter}` : undefined,
@@ -350,7 +413,9 @@ export function MonitorsDialog(props: {
               <Show
                 when={logs().length > 0}
                 fallback={
-                  <text fg={colors().muted}>No output yet.</text>
+                  <text fg={colors().muted}>
+                    {monitor().restored ? "Output isn't kept across OpenCode restarts." : "No output yet."}
+                  </text>
                 }
               >
                 <For each={visibleLogs().lines}>

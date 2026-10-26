@@ -31,7 +31,8 @@ An invalid regex returns an error and nothing starts.
 
 ## What arrives and when
 - Lines are grouped: everything printed within 200 ms comes as one message, each line prefixed with [monitor:<id>]
-- A non-zero exit is reported. A clean exit (code 0) is not, so use `until` when you need to know the moment something finishes
+- You are always told when a monitor ends, after its last output: the command finished (exit 0) or failed, the user killed it from /monitors, or it stopped because the plugin unloaded or OpenCode restarted. A monitor does not survive an OpenCode restart; when told it stopped, decide whether to start it again (the message includes the command)
+- Stopping a monitor yourself with sentinel_stop sends no extra message
 - stderr is not sent; it is kept in /tmp/sentinel-<id>-stderr.log and shown in /monitors
 
 ## Limits (the monitor stops and tells you)

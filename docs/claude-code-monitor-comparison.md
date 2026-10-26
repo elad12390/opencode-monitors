@@ -23,7 +23,8 @@ Legend: ✅ supported · ⚠️ partly · ❌ missing · ➖ not documented
 | Wakes an idle session and interjects while it works | ✅ | ✅ | Sentinel uses `delivery: "steer"` on OpenCode V2 |
 | Built-in line filter | ➖ the agent filters inside its script | ✅ | `filter` regex |
 | Stop automatically on a matching line | ➖ | ✅ | `until` regex, for "tell me when CI finishes" |
-| Notice when the command exits | ➖ | ⚠️ | Sentinel reports only non-zero exits; a clean exit is silent, so the agent never learns the watch ended |
+| Notice when the command exits | ➖ | ✅ | Clean exits, failures (exit code or signal) and a kill from `/monitors` are all reported, after the last output |
+| Notice when OpenCode restarts or crashes | ➖ | ✅ | Monitors are recorded in `~/.local/state/opencode-sentinel/monitors.json`. On the next start, Sentinel kills leftover processes and tells each session its monitor stopped, with the command to start it again |
 | stderr | ➖ | ⚠️ | Sentinel writes stderr to `/tmp/sentinel-<id>-stderr.log` and never sends it to the agent |
 | Flood protection | ➖ | ✅ | Sentinel stops a monitor above 100 lines/s and says so |
 
@@ -33,9 +34,9 @@ Legend: ✅ supported · ⚠️ partly · ❌ missing · ➖ not documented
 |---|---|---|---|
 | Deadline | ✅ 5 min default, 30 min max, 10 min in `-p` runs, with one notice at the deadline | ❌ | Sentinel monitors run until stopped, the command exits or the session is deleted |
 | Agent or user cancels it | ✅ ask Claude, or `TaskStop` | ✅ | `sentinel_stop` |
-| Stops when the session ends | ✅ | ⚠️ | Sentinel stops on `session.deleted` and plugin unload, not when a session merely goes idle or closes |
+| Stops when the session ends | ✅ | ⚠️ | Sentinel stops on `session.deleted`, and unloading the plugin in a project stops that project's monitors (with a notice); a session that merely goes idle keeps its monitors |
 | Stops with the subagent that started it | ✅ | ❌ | Sentinel only ties monitors to the session ID that started them |
-| UI to see and stop watches | ✅ task panel and `/tasks` | ❌ | Being added as the `/monitors` popup |
+| UI to see and stop watches | ✅ task panel and `/tasks` | ✅ | `/monitors` popup: status, logs, kill, filter by project |
 
 ## Safety and limits
 
@@ -75,7 +76,6 @@ In rough order of value:
 
 1. **Permission rules.** Call `ctx.permission.assert` with the `shell` action before starting the command, so deny and ask rules apply.
 2. **Deadlines.** Add a `timeout_ms` input (default 5 min, max 30 min) and send one notice when it fires.
-3. **Exit notice.** Tell the agent when the command exits cleanly, not only on failure.
-4. **Subagent cleanup.** Stop a subagent's monitors when its session finishes.
-5. **Plugin-declared monitors.** Read a monitors list from plugin config and start them at session start.
-6. **WebSocket source.** Accept a `ws` input with the same limits and approval prompt as Claude Code.
+3. **Subagent cleanup.** Stop a subagent's monitors when its session finishes.
+4. **Plugin-declared monitors.** Read a monitors list from plugin config and start them at session start.
+5. **WebSocket source.** Accept a `ws` input with the same limits and approval prompt as Claude Code.

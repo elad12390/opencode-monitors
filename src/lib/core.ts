@@ -11,6 +11,10 @@ export interface StartMonitorParams {
   until?: string
   sessionID: string
   deliver: Deliver
+  /** The project directory the monitor is started in. */
+  directory?: string
+  /** The plugin instance starting it; unloading that instance stops it. */
+  owner?: string
 }
 
 /**
@@ -54,8 +58,11 @@ export function startMonitor(params: StartMonitorParams): string {
     sessionID: params.sessionID,
     filter: params.filter,
     until: params.until,
+    directory: params.directory,
+    owner: params.owner,
+    deliver: params.deliver,
   })
-  return `Monitor started: ${id}\nCommand: ${params.command}\nUse sentinel_stop to stop it.`
+  return `Monitor started: ${id}\nCommand: ${params.command}\nUse sentinel_stop to stop it. You will be told when it ends, including when OpenCode restarts.`
 }
 
 export function stopMonitor(id: string): string {

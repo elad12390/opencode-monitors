@@ -22,9 +22,29 @@ export interface Monitor {
   status: MonitorStatus
   exitCode?: number | null
   signal?: string | null
+  endReason?: string
+  /** The project directory it was started in. */
+  directory?: string
+  /** Read back after an OpenCode restart; its output was not kept. */
+  restored?: boolean
   pid?: number
   filter?: string
   until?: string
+}
+
+export type Scope = "all" | "project"
+
+/** The monitors a scope shows: all of them, or those started in `directory`. */
+export function inScope(monitors: readonly Monitor[], scope: Scope, directory: string | undefined): Monitor[] {
+  if (scope === "all" || !directory) return [...monitors]
+  return monitors.filter((m) => m.directory === directory)
+}
+
+/** The last path segment, used as a short project name. */
+export function projectName(directory: string | undefined): string {
+  if (!directory) return "unknown"
+  const parts = directory.split(/[\\/]+/).filter(Boolean)
+  return parts[parts.length - 1] ?? directory
 }
 
 export interface LogLine {
@@ -53,8 +73,23 @@ export function statusLabel(monitor: Monitor, mono = false): StatusLabel {
         text: monitor.signal ? `killed (${monitor.signal})` : `failed (exit ${monitor.exitCode ?? "?"})`,
         tone: "error",
       }
-    case "stopped":
-      return { icon: mono ? "-" : "■", text: "stopped", tone: "muted" }
+    case "stopped": {
+      const icon = mono ? "-" : "■"
+      switch (monitor.endReason) {
+        case "user":
+          return { icon, text: "killed by you", tone: "muted" }
+        case "agent":
+          return { icon, text: "stopped by agent", tone: "muted" }
+        case "session":
+          return { icon, text: "session ended", tone: "muted" }
+        case "unload":
+          return { icon: mono ? "!" : "▲", text: "plugin unloaded", tone: "warning" }
+        case "restart":
+          return { icon: mono ? "!" : "▲", text: "OpenCode restarted", tone: "warning" }
+        default:
+          return { icon, text: "stopped", tone: "muted" }
+      }
+    }
     case "until":
       return { icon: mono ? "+" : "✓", text: "matched until", tone: "success" }
     case "flood":

@@ -16,6 +16,12 @@ const MONITOR = {
     },
     exitCode: { type: ["number", "null"] },
     signal: { type: ["string", "null"] },
+    endReason: {
+      type: "string",
+      enum: ["exit", "agent", "user", "session", "unload", "restart", "until", "flood", "slow-filter", "filter-error"],
+    },
+    directory: { type: "string" },
+    restored: { type: "boolean" },
     pid: { type: "number" },
     filter: { type: "string" },
     until: { type: "string" },

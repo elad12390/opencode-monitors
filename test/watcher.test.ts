@@ -168,43 +168,54 @@ describe("startWatcher", () => {
     expect(appendFileSyncCalls[0].data).toContain("error output")
   })
 
-  test("notifies on unexpected process exit (code !== 0)", async () => {
-    startWatcher({
-      id: "mon_exit",
+  function register(id: string) {
+    manager.start({
+      id,
+      proc: mockProc as any,
+      description: `monitor ${id}`,
       command: "test",
+      startedAt: new Date().toISOString(),
+      linesEmitted: 0,
       sessionID: "ses_123",
       deliver,
-      manager,
     })
+  }
+
+  test("tells the agent when the command fails, with its exit code and how to restart it", async () => {
+    register("mon_exit")
+    startWatcher({ id: "mon_exit", command: "test", sessionID: "ses_123", deliver, manager })
 
     mockProc.emit("exit", 1)
     await new Promise((r) => setTimeout(r, 50))
 
-    const exitCall = deliverCalls.find((t) =>
-      t.includes("exited unexpectedly"),
+    expect(deliverCalls).toContain(
+      `[monitor:mon_exit] "monitor mon_exit" ended: the command exited with code 1. It is no longer running. If you still need it, start it again with sentinel_monitor (command: "test").`,
     )
-    expect(exitCall).toBeDefined()
-    expect(exitCall!).toContain("code 1")
   })
 
-  test("does NOT notify on normal exit (code 0)", async () => {
-    startWatcher({
-      id: "mon_normal",
-      command: "test",
-      sessionID: "ses_123",
-      deliver,
-      manager,
-    })
-
-    deliverCalls.length = 0
+  test("tells the agent when the command finishes cleanly", async () => {
+    register("mon_normal")
+    startWatcher({ id: "mon_normal", command: "test", sessionID: "ses_123", deliver, manager })
 
     mockProc.emit("exit", 0)
     await new Promise((r) => setTimeout(r, 50))
 
-    const exitCall = deliverCalls.find((t) =>
-      t.includes("exited unexpectedly"),
-    )
-    expect(exitCall).toBeUndefined()
+    expect(deliverCalls).toEqual([
+      `[monitor:mon_normal] "monitor mon_normal" finished: the command exited with code 0. It is no longer running.`,
+    ])
+  })
+
+  test("the last output arrives before the notice that the command ended", async () => {
+    register("mon_order")
+    startWatcher({ id: "mon_order", command: "test", sessionID: "ses_123", deliver, manager })
+
+    mockStdout.emit("data", Buffer.from("last words\n"))
+    mockProc.emit("exit", 0)
+    await new Promise((r) => setTimeout(r, 50))
+
+    expect(deliverCalls).toHaveLength(2)
+    expect(deliverCalls[0]).toBe("[monitor:mon_order] last words")
+    expect(deliverCalls[1]).toContain("finished")
   })
 
   test("flood limit: kills process when >100 lines in 1 second", () => {

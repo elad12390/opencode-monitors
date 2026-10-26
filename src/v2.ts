@@ -1,6 +1,15 @@
 import { listMonitors, startMonitor, stopMonitor } from "./lib/core"
 import { manager } from "./lib/manager"
+import { announcePending, recoverMonitors } from "./lib/recovery"
+import { createFileStore, type MonitorStore } from "./lib/state"
 import description from "./monitor.txt" with { type: "text" }
+
+let store: MonitorStore | undefined
+/** One state-file store per process, created on first use so tests can point it elsewhere first. */
+function stateStore(): MonitorStore {
+  store ??= createFileStore()
+  return store
+}
 
 /**
  * The subset of the OpenCode V2 plugin context this plugin relies on. Typed
@@ -18,6 +27,7 @@ interface V2ToolDefinition {
 }
 
 interface V2Context {
+  location?: { directory?: string }
   tool: {
     transform: (
       callback: (editor: { add: (tool: V2ToolDefinition) => void }) => void,
@@ -73,9 +83,10 @@ async function registerRpc(ctx: V2Context): Promise<() => void> {
       const lines = manager.logs(id, limit)
       return lines ? { lines: asJson(lines) } : notFound(context, id)
     },
+    // Only /monitors calls this, so the user is the one stopping it.
     stop: async ({ id }, context) => {
       if (manager.get(id)) {
-        manager.stop(id)
+        manager.stop(id, "stopped", "user")
         return { stopped: true }
       }
       return manager.logs(id) ? { stopped: false } : notFound(context, id)
@@ -155,6 +166,17 @@ export async function v2Setup(
     return
   }
 
+  // OpenCode sets the plugin up once per open project. Monitors remember
+  // which setup started them, so unloading one project stops only its own.
+  const owner = crypto.randomUUID()
+  const directory = ctx.location?.directory
+  const deliverTo = (sessionID: string) => async (text: string) => {
+    await ctx.session.prompt({ sessionID, text, delivery: "steer" })
+  }
+
+  recoverMonitors({ manager, store: stateStore() })
+  const cancelAnnounce = announcePending({ manager, directory, deliverTo })
+
   await ctx.tool.transform((editor) => {
     editor.add({
       name: "sentinel_monitor",
@@ -164,9 +186,6 @@ export async function v2Setup(
         const sessionID = context.sessionID
         // On V2 an explicit `delivery: "steer"` reaches both idle and running
         // sessions (verified on 2.0.29), so no parts fallback is needed.
-        const deliver = async (text: string) => {
-          await ctx.session.prompt({ sessionID, text, delivery: "steer" })
-        }
         return {
           content: startMonitor({
             command: input.command,
@@ -174,7 +193,9 @@ export async function v2Setup(
             filter: input.filter,
             until: input.until,
             sessionID,
-            deliver,
+            deliver: deliverTo(sessionID),
+            directory,
+            owner,
           }),
         }
       },
@@ -249,6 +270,7 @@ export async function v2Setup(
   return () => {
     controller.abort()
     disposeRpc()
-    manager.dispose()
+    cancelAnnounce()
+    manager.disposeOwner(owner)
   }
 }

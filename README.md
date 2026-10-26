@@ -127,6 +127,18 @@ sentinel_monitor with:
 
 `filter` and `until` run in a worker thread. If one line keeps a pattern busy for more than 250 ms, the monitor stops and tells the agent, so a pattern such as `(a+)+$` can't freeze OpenCode. A line longer than 64K characters is cut and marked `[line cut at 65536 characters]`.
 
+### The agent always hears how a monitor ended
+
+Besides its output, the agent gets one message when a monitor ends: the command finished (exit 0), failed (exit code or signal), was killed from `/monitors`, matched `until`, was stopped for flooding or a slow filter, or stopped because the plugin unloaded. When it would make sense to restart it, the message includes the command. Stopping a monitor with `sentinel_stop` sends nothing, since the tool's reply already says so.
+
+On OpenCode V2 every monitor is also recorded in `~/.local/state/opencode-sentinel/monitors.json` (override with `SENTINEL_STATE_FILE`). If OpenCode restarts or crashes, the next start:
+
+- kills the monitored commands left running, after checking that the PID still runs that command, so a reused PID is never touched
+- tells each monitor's session, once that project is open, that it stopped because OpenCode restarted, with the command to start it again
+- keeps the finished monitors in `/monitors`, marked so, without their output
+
+Monitors owned by another OpenCode process that is still running are left alone. Unloading the plugin in one project stops only that project's monitors.
+
 ## See and kill monitors: `/monitors` (OpenCode V2)
 
 Type `/monitors`, or pick **Monitors** from the command palette, to open a popup with every running monitor and the 50 most recent finished ones.
@@ -134,9 +146,10 @@ Type `/monitors`, or pick **Monitors** from the command palette, to open a popup
 - `↑` `↓` select a monitor. Its command, pid, filter and recent output (stdout and stderr, up to 1,000 lines) show below the list.
 - `enter` expands the output to the full popup. `↑` `↓` scroll, `pgup` `pgdn` page, `end` follows new output again.
 - `k` kills the selected monitor. Press it twice: the first press asks for confirmation.
+- `tab` switches between **All projects** and **This project**; the choice is remembered. In the all-projects view each row shows its project.
 - `esc` closes the popup.
 
-The status column says how each monitor ended: `done`, `failed (exit N)`, `killed (SIGNAL)`, `stopped`, `matched until`, `stopped: flood` or `stopped: slow filter`.
+The status column says how each monitor ended: `done`, `failed (exit N)`, `killed (SIGNAL)`, `killed by you`, `stopped by agent`, `session ended`, `plugin unloaded`, `OpenCode restarted`, `matched until`, `stopped: flood`, `stopped: slow filter` or `stopped: filter error`.
 
 The popup is the package's `./tui` entry, and OpenCode loads it along with the server plugin. It reads monitors from the server through the plugin's `sentinel` RPC (`./rpc`), which has `list`, `logs` and `stop` methods and a `changed` event.
 
