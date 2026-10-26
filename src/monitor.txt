@@ -1,49 +1,45 @@
-sentinel_monitor — バックグラウンドプロセス監視ツール
+sentinel_monitor — watch a background command and get its output as it happens
 
-このツールは、長時間実行されるコマンドをバックグラウンドで起動し、その標準出力（stdout）の各行をエージェントに steer 通知としてリアルタイムに送信します。
+Starts a shell command in the background and sends each new stdout line to this session as a message, so you can react to an event without polling or a sleep loop. You can keep working; an idle session wakes up when a line arrives.
 
-## 使用する場面
-- ログファイルのリアルタイム監視（`tail -f`）
-- 継続的なプロセス出力の監視
-- 長時間実行されるコマンドの出力を逐次確認したい場合
+## When to use it
+- Waiting for something to show up in ongoing output: a log line (`tail -f`), a CI or PR status change, a dev server crash, a training metric
+- Watching any long-running command whose output you need line by line
 
-## 使用しない場面
-- 一度だけ実行して結果を待つコマンド（`ls`, `cat` など）→ sentinel_shell を使用してください
-- インタラクティブなコマンド（入力を必要とするもの）
+## When not to use it
+- A command whose only result is finishing (a build, a test run): run it as a background shell job and wait for its completion notice
+- Interactive commands that need input
 
-## 重要: grep をパイプで使う場合
-`grep` にパイプする場合、**必ず `--line-buffered` オプションを付けてください**。
-デフォルトでは grep はブロックバッファリングを行うため、リアルタイムに行が届きません。
+## Pipes: use line buffering
+When piping through `grep`, always pass `--line-buffered`; otherwise grep buffers its output and lines arrive late or not at all.
 
-正しい例:
-  tail -f /var/log/app.log | grep --line-buffered ERROR
-  tail -f /var/log/nginx/access.log | grep --line-buffered " 500 "
+  Right: tail -f /var/log/app.log | grep --line-buffered ERROR
+  Wrong: tail -f /var/log/app.log | grep ERROR
 
-誤った例（行がバッファリングされて遅延します）:
-  tail -f /var/log/app.log | grep ERROR
+## filter and until
+Both take a JavaScript regular expression and are optional.
+- `filter`: only matching lines are sent; the rest are dropped (they still appear in /monitors)
+- `until`: the first line that matches is sent and the monitor stops. Use it for one-shot waits such as "tell me when CI finishes"
+With both, `until` is checked only on lines that passed `filter`.
 
-## 動作の仕組み
-1. 指定されたコマンドをシェル経由でバックグラウンド起動します
-2. stdout の各行を読み取り、エージェントに steer 通知として送信します
-3. stderr は `/tmp/sentinel-{id}-stderr.log` に分離して記録します
-4. プロセスが予期せず終了した場合も steer 通知で報告します
+Examples:
+- Only errors: filter="ERROR"
+- Wait for CI: command="gh run watch <id>", until="(completed|failed)"
+- Build errors until the build ends: filter="(error|fatal)", until="BUILD (SUCCESS|FAILED)"
 
-## 条件マッチ通知（filter / until）
+An invalid regex returns an error and nothing starts.
 
-`sentinel_monitor` は2つの正規表現引数を取ります:
+## What arrives and when
+- Lines are grouped: everything printed within 200 ms comes as one message, each line prefixed with [monitor:<id>]
+- A non-zero exit is reported. A clean exit (code 0) is not, so use `until` when you need to know the moment something finishes
+- stderr is not sent; it is kept in /tmp/sentinel-<id>-stderr.log and shown in /monitors
 
-- `filter`（任意）: マッチした行だけ通知。非マッチ行は破棄される。
-- `until`（任意）: マッチした行を通知後、monitor を自動終了する（ワンショット待機）。
+## Limits (the monitor stops and tells you)
+- More than 100 lines per second: narrow the command or the filter
+- A filter/until pattern that takes over 250 ms on one line: use a simpler pattern
+- Lines longer than 64K characters are cut and marked
 
-併用時は `filter` で絞った上で `until` を評価します（パイプ順）。
-
-使用例:
-- ERROR 行だけ通知: `filter="ERROR"`
-- CI 完了を待機: `until="(completed|failed)"`
-- ビルドのエラー行だけ観て完了で止める: `filter="(error|fatal)" until="BUILD (SUCCESS|FAILED)"`
-
-不正な正規表現を渡すと monitor は起動せず、エラーメッセージを返します。
-
-## 関連ツール
-- sentinel_stop: 実行中のモニターを停止します
-- sentinel_list: 実行中のモニター一覧を確認します
+## Related
+- sentinel_stop: stop a monitor by ID once you no longer need it
+- sentinel_list: list running monitors
+- The user can see every monitor, read its output and kill it with the /monitors command
