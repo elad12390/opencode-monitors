@@ -39,6 +39,61 @@ interface V2Context {
       properties?: { sessionID?: string }
     }>
   }
+  rpc?: {
+    register: (definition: unknown, handlers: Record<string, RpcHandler>) => Promise<{
+      dispose: () => Promise<void>
+      events: { emit: (name: string, data: Record<string, unknown>) => Promise<void> }
+    }>
+  }
+}
+
+type RpcHandler = (
+  input: any,
+  context: { error: (type: string, message: string, data?: unknown) => unknown },
+) => Promise<unknown>
+
+/** Coalesces monitor changes into at most one `changed` event per monitor every 250 ms. */
+const CHANGE_EVENT_INTERVAL_MS = 250
+
+async function registerRpc(ctx: V2Context): Promise<() => void> {
+  if (typeof ctx.rpc?.register !== "function") return () => {}
+  const { SentinelRpc } = await import("./rpc")
+  const notFound = (context: Parameters<RpcHandler>[1], id: string) =>
+    context.error("not_found", `Monitor not found: ${id}`, { id })
+
+  const registration = await ctx.rpc.register(SentinelRpc, {
+    list: async () => ({ monitors: manager.all() }),
+    logs: async ({ id, limit }, context) => {
+      const lines = manager.logs(id, limit)
+      return lines ? { lines } : notFound(context, id)
+    },
+    stop: async ({ id }, context) => {
+      if (manager.get(id)) {
+        manager.stop(id)
+        return { stopped: true }
+      }
+      return manager.logs(id) ? { stopped: false } : notFound(context, id)
+    },
+  })
+
+  const changedIDs = new Set<string>()
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const unsubscribe = manager.onChange((id) => {
+    changedIDs.add(id)
+    timer ??= setTimeout(() => {
+      timer = undefined
+      for (const changed of changedIDs) {
+        void registration.events.emit("changed", { id: changed }).catch(() => {})
+      }
+      changedIDs.clear()
+    }, CHANGE_EVENT_INTERVAL_MS)
+  })
+
+  return () => {
+    unsubscribe()
+    if (timer) clearTimeout(timer)
+    void registration.dispose().catch(() => {})
+  }
 }
 
 const MONITOR_INPUT = {
@@ -161,6 +216,8 @@ export async function v2Setup(
     })
   })
 
+  const disposeRpc = await registerRpc(ctx)
+
   const controller = new AbortController()
   if (typeof ctx.event?.subscribe === "function") {
     void (async () => {
@@ -185,6 +242,7 @@ export async function v2Setup(
 
   return () => {
     controller.abort()
+    disposeRpc()
     manager.dispose()
   }
 }

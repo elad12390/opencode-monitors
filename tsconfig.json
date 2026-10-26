@@ -6,8 +6,10 @@
     "moduleResolution": "bundler",
     "types": ["bun-types"],
     "skipLibCheck": true,
-    "noEmit": true
+    "noEmit": true,
+    "jsx": "preserve",
+    "jsxImportSource": "@opentui/solid"
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
   "exclude": ["node_modules", "test"]
 }

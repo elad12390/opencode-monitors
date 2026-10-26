@@ -1,7 +1,7 @@
 import { spawn, type ChildProcess } from "node:child_process"
 import fs from "node:fs"
 import { createLineSplitter } from "./lines"
-import type { MonitorManager } from "./manager"
+import type { MonitorManager, StopReason } from "./manager"
 import { createMatcher, MatchTimeoutError } from "./matcher"
 
 /** Delivers a notification string to the monitored session. */
@@ -21,6 +21,7 @@ export function startWatcher(params: {
       ? createMatcher({ filter: params.filter, until: params.until })
       : null
   const splitLines = createLineSplitter()
+  const splitErrorLines = createLineSplitter()
   // Lines that need the matcher are handled one after another on this chain,
   // so they reach the agent in the order the command wrote them.
   let matching: Promise<void> = Promise.resolve()
@@ -38,14 +39,14 @@ export function startWatcher(params: {
   // in the pipe after that point is ignored instead of stopping it again.
   let selfStopped = false
 
-  function stopSelf() {
+  function stopSelf(reason: StopReason) {
     selfStopped = true
     if (proc.pid) {
       try {
         process.kill(-proc.pid, "SIGTERM")
       } catch {}
     }
-    if (params.manager.get(params.id)) params.manager.stop(params.id)
+    if (params.manager.get(params.id)) params.manager.stop(params.id, reason)
   }
 
   const lineTimestamps: number[] = []
@@ -89,7 +90,7 @@ export function startWatcher(params: {
         `[monitor:${params.id}] UNTIL MATCHED "${params.until}" — monitor auto-stopped`,
         "until",
       )
-      stopSelf()
+      stopSelf("until")
       return
     }
 
@@ -111,7 +112,7 @@ export function startWatcher(params: {
             `[monitor:${params.id}] ${err.message}. Monitor auto-stopped; use a simpler pattern.`,
             "slow-regex",
           )
-          stopSelf()
+          stopSelf("slow-filter")
         }
         return
       }
@@ -127,6 +128,7 @@ export function startWatcher(params: {
       if (!line.trim()) continue
 
       params.manager.incrementLines(params.id)
+      params.manager.appendLog(params.id, "stdout", line)
 
       const now = Date.now()
       lineTimestamps.push(now)
@@ -142,7 +144,7 @@ export function startWatcher(params: {
           `[monitor:${params.id}] FLOOD DETECTED: ${lineTimestamps.length} lines/sec exceeds limit of ${MAX_LINES_PER_SEC}. Monitor auto-stopped.`,
           "flood",
         )
-        stopSelf()
+        stopSelf("flood")
         return
       }
 
@@ -153,10 +155,15 @@ export function startWatcher(params: {
 
   proc.stderr!.on("data", (chunk: Buffer) => {
     const logPath = `/tmp/sentinel-${params.id}-stderr.log`
-    fs.appendFileSync(logPath, chunk.toString())
+    const text = chunk.toString()
+    fs.appendFileSync(logPath, text)
+    for (const line of splitErrorLines(text)) {
+      if (line.trim()) params.manager.appendLog(params.id, "stderr", line)
+    }
   })
 
-  proc.on("exit", async (code) => {
+  proc.on("exit", async (code, signal) => {
+    params.manager.exited(params.id, code, signal)
     await matching
     matcher?.dispose()
     if (batchTimer) {

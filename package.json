@@ -3,7 +3,13 @@
   "version": "0.2.0",
   "type": "module",
   "main": "src/index.ts",
-  "files": ["src", "README.md", "README_ja.md", "CHANGELOG.md", "LICENSE"],
+  "files": [
+    "src",
+    "README.md",
+    "README_ja.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -13,24 +19,50 @@
   "bugs": {
     "url": "https://github.com/tsukimiya/opencode-sentinel/issues"
   },
-  "keywords": ["opencode", "plugin", "monitor", "sentinel", "cli", "tail", "log"],
+  "keywords": [
+    "opencode",
+    "plugin",
+    "monitor",
+    "sentinel",
+    "cli",
+    "tail",
+    "log"
+  ],
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "bun test ./test/",
-    "test:perf": "bun test ./perf/ --timeout 60000"
+    "test:perf": "bun test ./perf/ --timeout 60000",
+    "test:tui": "bun test ./test-tui/ --preload @opentui/solid/preload",
+    "test:integration": "bun test ./test-integration/",
+    "test:all": "bun run test && bun run test:integration && bun run test:tui && bun run test:perf"
   },
   "peerDependencies": {
     "@opencode-ai/plugin": ">=1.14.34",
     "@opencode-ai/sdk": ">=1.14.34"
   },
   "peerDependenciesMeta": {
-    "@opencode-ai/plugin": { "optional": true },
-    "@opencode-ai/sdk": { "optional": true }
+    "@opencode-ai/plugin": {
+      "optional": true
+    },
+    "@opencode-ai/sdk": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@opencode-ai/plugin": "1.17.15",
     "@opencode-ai/sdk": "1.17.15",
+    "@opencode/plugin": "2.1.4",
+    "@opencode/theme": "2.1.4",
+    "@opentui/core": "0.6.8",
+    "@opentui/keymap": "0.6.8",
+    "@opentui/solid": "0.6.8",
     "@types/bun": "latest",
+    "solid-js": "1.9.12",
     "typescript": "^5"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./tui": "./src/tui.tsx",
+    "./rpc": "./src/rpc.ts"
   }
 }

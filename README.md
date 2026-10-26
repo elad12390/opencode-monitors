@@ -110,6 +110,35 @@ sentinel_monitor with:
   until: "BUILD (SUCCESS|FAILED)"
 ```
 
+### Filter safety and long lines
+
+`filter` and `until` run in a worker thread. If one line keeps a pattern busy for more than 250 ms, the monitor stops and tells the agent, so a pattern such as `(a+)+$` can't freeze OpenCode. A line longer than 64K characters is cut and marked `[line cut at 65536 characters]`.
+
+## See and kill monitors: `/monitors` (OpenCode V2)
+
+Type `/monitors`, or pick **Monitors** from the command palette, to open a popup with every running monitor and the 50 most recent finished ones.
+
+- `↑` `↓` select a monitor. Its command, pid, filter and recent output (stdout and stderr, up to 1,000 lines) show below the list.
+- `enter` expands the output to the full popup. `↑` `↓` scroll, `pgup` `pgdn` page, `end` follows new output again.
+- `k` kills the selected monitor. Press it twice: the first press asks for confirmation.
+- `esc` closes the popup.
+
+The status column says how each monitor ended: `done`, `failed (exit N)`, `killed (SIGNAL)`, `stopped`, `matched until`, `stopped: flood` or `stopped: slow filter`.
+
+The popup is the package's `./tui` entry, and OpenCode loads it along with the server plugin. It reads monitors from the server through the plugin's `sentinel` RPC (`./rpc`), which has `list`, `logs` and `stop` methods and a `changed` event.
+
+## Tests
+
+| Command | What it covers |
+|---|---|
+| `bun run test` | Unit tests |
+| `bun run test:integration` | The `sentinel` RPC with real monitor processes |
+| `bun run test:tui` | The `/monitors` popup, rendered by OpenTUI's test renderer and driven with key presses |
+| `bun run test:perf` | Latency, batching, flood shutdown, 50 concurrent monitors, idle cost, cleanup and hostile output, with real processes. Results go to `tmp/perf/latest.json` |
+| `bun run test:all` | All of the above |
+
+For how Sentinel compares with Claude Code's Monitor tool, see [docs/claude-code-monitor-comparison.md](docs/claude-code-monitor-comparison.md).
+
 ## steer vs queue
 
 Sentinel uses `delivery: "steer"` for agent notifications. Here's how it differs from `"queue"`:
