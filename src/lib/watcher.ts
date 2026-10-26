@@ -1,6 +1,8 @@
 import { spawn, type ChildProcess } from "node:child_process"
 import fs from "node:fs"
+import { createLineSplitter } from "./lines"
 import type { MonitorManager } from "./manager"
+import { createMatcher, MatchTimeoutError } from "./matcher"
 
 /** Delivers a notification string to the monitored session. */
 export type Deliver = (text: string) => Promise<void>
@@ -14,8 +16,14 @@ export function startWatcher(params: {
   filter?: string
   until?: string
 }): ChildProcess {
-  const filterRe = params.filter ? new RegExp(params.filter) : null
-  const untilRe = params.until ? new RegExp(params.until) : null
+  const matcher =
+    params.filter || params.until
+      ? createMatcher({ filter: params.filter, until: params.until })
+      : null
+  const splitLines = createLineSplitter()
+  // Lines that need the matcher are handled one after another on this chain,
+  // so they reach the agent in the order the command wrote them.
+  let matching: Promise<void> = Promise.resolve()
 
   const proc = spawn(params.command, {
     shell: true,
@@ -24,9 +32,21 @@ export function startWatcher(params: {
     env: { ...process.env, SENTINEL_SESSION_ID: params.sessionID },
   })
 
-  let buffer = ""
   let batchBuffer: string[] = []
   let batchTimer: ReturnType<typeof setTimeout> | null = null
+  // Set once the watcher stops itself (flood or until). Output that is still
+  // in the pipe after that point is ignored instead of stopping it again.
+  let selfStopped = false
+
+  function stopSelf() {
+    selfStopped = true
+    if (proc.pid) {
+      try {
+        process.kill(-proc.pid, "SIGTERM")
+      } catch {}
+    }
+    if (params.manager.get(params.id)) params.manager.stop(params.id)
+  }
 
   const lineTimestamps: number[] = []
   const MAX_LINES_PER_SEC = 100
@@ -55,12 +75,55 @@ export function startWatcher(params: {
     notify(text, "batch")
   }
 
-  proc.stdout!.on("data", async (chunk: Buffer) => {
-    buffer += chunk.toString()
-    const lines = buffer.split("\n")
-    buffer = lines.pop() || "" // keep incomplete line in buffer
+  /** Queues a line that passed the filter, or stops the monitor when it matched `until`. */
+  function accept(line: string, matchedUntil: boolean) {
+    // until is evaluated on the filter-surviving stream, so filter+until compose as a pipeline.
+    if (matchedUntil) {
+      batchBuffer.push(line)
+      if (batchTimer) {
+        clearTimeout(batchTimer)
+        batchTimer = null
+      }
+      flushBatch()
+      notify(
+        `[monitor:${params.id}] UNTIL MATCHED "${params.until}" — monitor auto-stopped`,
+        "until",
+      )
+      stopSelf()
+      return
+    }
 
-    for (const line of lines) {
+    batchBuffer.push(line)
+    if (!batchTimer) {
+      batchTimer = setTimeout(flushBatch, 200)
+    }
+  }
+
+  function acceptWhenMatched(line: string) {
+    matching = matching.then(async () => {
+      if (selfStopped) return
+      let result
+      try {
+        result = await matcher!.match(line)
+      } catch (err) {
+        if (err instanceof MatchTimeoutError && !selfStopped) {
+          notify(
+            `[monitor:${params.id}] ${err.message}. Monitor auto-stopped; use a simpler pattern.`,
+            "slow-regex",
+          )
+          stopSelf()
+        }
+        return
+      }
+      if (selfStopped || !result.keep) return
+      accept(line, result.stop)
+    })
+  }
+
+  proc.stdout!.on("data", async (chunk: Buffer) => {
+    if (selfStopped) return
+
+    for (const line of splitLines(chunk.toString())) {
       if (!line.trim()) continue
 
       params.manager.incrementLines(params.id)
@@ -75,46 +138,16 @@ export function startWatcher(params: {
       }
 
       if (lineTimestamps.length > MAX_LINES_PER_SEC) {
-        if (proc.pid) {
-          try {
-            process.kill(-proc.pid, "SIGTERM")
-          } catch {}
-        }
         notify(
           `[monitor:${params.id}] FLOOD DETECTED: ${lineTimestamps.length} lines/sec exceeds limit of ${MAX_LINES_PER_SEC}. Monitor auto-stopped.`,
           "flood",
         )
-        params.manager.stop(params.id)
+        stopSelf()
         return
       }
 
-      if (filterRe && !filterRe.test(line)) continue
-
-      // until is evaluated on the filter-surviving stream, so filter+until compose as a pipeline.
-      if (untilRe && untilRe.test(line)) {
-        batchBuffer.push(line)
-        if (batchTimer) {
-          clearTimeout(batchTimer)
-          batchTimer = null
-        }
-        flushBatch()
-        notify(
-          `[monitor:${params.id}] UNTIL MATCHED "${params.until}" — monitor auto-stopped`,
-          "until",
-        )
-        if (proc.pid) {
-          try {
-            process.kill(-proc.pid, "SIGTERM")
-          } catch {}
-        }
-        params.manager.stop(params.id)
-        return
-      }
-
-      batchBuffer.push(line)
-      if (!batchTimer) {
-        batchTimer = setTimeout(flushBatch, 200)
-      }
+      if (matcher) acceptWhenMatched(line)
+      else accept(line, false)
     }
   })
 
@@ -124,6 +157,8 @@ export function startWatcher(params: {
   })
 
   proc.on("exit", async (code) => {
+    await matching
+    matcher?.dispose()
     if (batchTimer) {
       clearTimeout(batchTimer)
       batchTimer = null

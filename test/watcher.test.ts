@@ -245,6 +245,43 @@ describe("startWatcher", () => {
     }
   })
 
+  test("flood limit: output still in the pipe after the stop is ignored", () => {
+    const origKill = process.kill
+    try {
+      ;(process as any).kill = () => {}
+
+      manager.start({
+        id: "mon_flood_late",
+        proc: mockProc as any,
+        description: "late output",
+        command: "test",
+        startedAt: new Date().toISOString(),
+        linesEmitted: 0,
+        sessionID: "ses_123",
+      })
+
+      startWatcher({
+        id: "mon_flood_late",
+        command: "test",
+        sessionID: "ses_123",
+        deliver,
+        manager,
+      })
+
+      const lines = Array.from({ length: 101 }, (_, i) => `line${i}`).join("\n")
+      mockStdout.emit("data", Buffer.from(lines + "\n"))
+      expect(manager.get("mon_flood_late")).toBeUndefined()
+
+      expect(() =>
+        mockStdout.emit("data", Buffer.from(lines + "\n")),
+      ).not.toThrow()
+      const floods = deliverCalls.filter((t) => t.includes("FLOOD DETECTED"))
+      expect(floods).toHaveLength(1)
+    } finally {
+      process.kill = origKill
+    }
+  })
+
   test("filter: only matching lines are notified", async () => {
     manager.start({
       id: "mon_filter",

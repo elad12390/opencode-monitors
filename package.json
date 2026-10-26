@@ -16,7 +16,8 @@
   "keywords": ["opencode", "plugin", "monitor", "sentinel", "cli", "tail", "log"],
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "bun test ./test/"
+    "test": "bun test ./test/",
+    "test:perf": "bun test ./perf/ --timeout 60000"
   },
   "peerDependencies": {
     "@opencode-ai/plugin": ">=1.14.34",
