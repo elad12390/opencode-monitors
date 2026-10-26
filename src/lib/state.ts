@@ -31,11 +31,13 @@ export interface StoredMonitor {
   notice?: NoticeState
   /** The OpenCode process that owns the monitor. */
   ownerPid: number
+  /** The manager inside that process that owns it. */
+  ownerToken?: string
 }
 
 export interface MonitorStore {
   read(): StoredMonitor[]
-  /** Replaces this process's records, keeping records other processes own. */
+  /** Replaces this owner's records, keeping records anyone else owns. */
   save(records: StoredMonitor[]): void
 }
 
@@ -46,11 +48,11 @@ export function defaultStateFile(): string {
 }
 
 /**
- * A JSON file shared by every OpenCode process on the machine. Each process
- * rewrites only its own records; writes go through a temp file and a rename
- * so a reader never sees half a file.
+ * A JSON file shared by every OpenCode process on the machine. Each owner (a
+ * manager, identified by `ownerToken`) rewrites only its own records; writes
+ * go through a temp file and a rename so a reader never sees half a file.
  */
-export function createFileStore(file = defaultStateFile(), ownerPid = process.pid): MonitorStore {
+export function createFileStore(ownerToken: string, file = defaultStateFile()): MonitorStore {
   const read = (): StoredMonitor[] => {
     try {
       const parsed = JSON.parse(readFileSync(file, "utf8"))
@@ -64,7 +66,7 @@ export function createFileStore(file = defaultStateFile(), ownerPid = process.pi
     read,
     save(records) {
       const mine = new Set(records.map((r) => r.id))
-      const others = read().filter((r) => r.ownerPid !== ownerPid && !mine.has(r.id))
+      const others = read().filter((r) => r.ownerToken !== ownerToken && !mine.has(r.id))
       mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 })
       const temp = `${file}.${process.pid}.${Math.random().toString(36).slice(2)}.tmp`
       writeFileSync(temp, JSON.stringify([...others, ...records], null, 2) + "\n", { mode: 0o600 })

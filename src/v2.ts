@@ -5,9 +5,9 @@ import { createFileStore, type MonitorStore } from "./lib/state"
 import { LIST_MONITORS, MONITOR, STOP_MONITOR } from "./tools"
 
 let store: MonitorStore | undefined
-/** One state-file store per process, created on first use so tests can point it elsewhere first. */
+/** The state-file store of this process's manager, created on first use so tests can point it elsewhere first. */
 function stateStore(): MonitorStore {
-  store ??= createFileStore()
+  store ??= createFileStore(manager.token)
   return store
 }
 

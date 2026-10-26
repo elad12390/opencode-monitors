@@ -43,10 +43,9 @@ export function killOrphan(record: StoredMonitor): boolean {
  * Brings monitors from the state file into this process:
  * - a monitor still marked running whose OpenCode is gone was stopped by the
  *   restart; its leftover process is killed and its session will be told
- * - a monitor still marked running by this same process, but unknown to this
- *   manager, belonged to an earlier load of the plugin that never unloaded
- * - monitors owned by another OpenCode that is still running are left alone
- * - finished monitors come back as history for /monitors
+ * - finished monitors of a gone OpenCode come back as history for /monitors
+ * - monitors owned by a running OpenCode, including this one, are left alone:
+ *   their owner is still watching them
  *
  * Returns the IDs of monitors that ended in the restart.
  */
@@ -68,14 +67,13 @@ export function recoverMonitors(options: {
     .sort((a, b) => a.startedAt.localeCompare(b.startedAt))
 
   for (const record of records) {
-    const mine = record.ownerPid === process.pid
-    if (!mine && isOwnerAlive(record.ownerPid)) continue
+    if (record.ownerPid === process.pid || isOwnerAlive(record.ownerPid)) continue
     if (record.status === "running") {
       kill(record)
       options.manager.restore({
         ...record,
         status: "stopped",
-        endReason: mine ? "unload" : "restart",
+        endReason: "restart",
         endedAt: now().toISOString(),
         notice: "pending",
       })

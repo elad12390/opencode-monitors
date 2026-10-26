@@ -4,7 +4,7 @@ import { startMonitor } from "../../src/lib/core"
 import { manager } from "../../src/lib/manager"
 import { createFileStore } from "../../src/lib/state"
 
-manager.persistTo(createFileStore(process.env.SENTINEL_STATE_FILE))
+manager.persistTo(createFileStore(manager.token, process.env.SENTINEL_STATE_FILE))
 const result = startMonitor({
   command: process.env.MONITOR_COMMAND ?? "sleep 300",
   description: "crash survivor",

@@ -28,7 +28,8 @@ function memoryStore(records: StoredMonitor[]) {
     read: () => saved,
     save: (mine) => {
       const ids = new Set(mine.map((r) => r.id))
-      saved = [...saved.filter((r) => r.ownerPid !== process.pid && !ids.has(r.id)), ...mine]
+      const token = mine[0]?.ownerToken
+      saved = [...saved.filter((r) => (token === undefined || r.ownerToken !== token) && !ids.has(r.id)), ...mine]
     },
   }
   return { store, saved: () => saved }
@@ -115,9 +116,12 @@ describe("recovering monitors after OpenCode restarts", () => {
     expect(saved()[0]).toMatchObject({ status: "running", ownerPid: LIVE_OPENCODE })
   })
 
-  test("a monitor this process marked running but no longer knows was stopped by an earlier plugin load", () => {
-    const { manager } = recover([stored({ ownerPid: process.pid })])
-    expect(manager.all()[0]).toMatchObject({ status: "stopped", endReason: "unload" })
+  test("monitors owned by this same OpenCode process are never touched, even by a manager that does not know them", () => {
+    // OpenCode loads one plugin copy per open project; another copy may own it.
+    const { manager, killed, ended } = recover([stored({ ownerPid: process.pid, ownerToken: "another-copy" })])
+    expect(ended).toEqual([])
+    expect(killed).toEqual([])
+    expect(manager.all()).toEqual([])
   })
 
   test("finished monitors come back as history, and an undelivered end is still announced", () => {

@@ -70,7 +70,7 @@ describe("OpenCode restarts", () => {
     })
 
     const restarted = new MonitorManager()
-    const ended = recoverMonitors({ manager: restarted, store: createFileStore(file) })
+    const ended = recoverMonitors({ manager: restarted, store: createFileStore(restarted.token, file) })
     expect(ended).toEqual([id])
     expect(await until(() => !alive(monitorPid))).toBe(true)
 
@@ -104,7 +104,7 @@ describe("OpenCode restarts", () => {
     // Something else now holds a PID the state file points at.
     const bystander = Bun.spawn(["sleep", "30"])
     cleanups.push(() => bystander.kill("SIGKILL"))
-    const store = createFileStore(file)
+    const store = createFileStore("bystander-check", file)
     store.save(store.read().map((r) => ({ ...r, pid: bystander.pid })))
 
     recoverMonitors({ manager: new MonitorManager(), store })

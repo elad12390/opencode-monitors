@@ -87,6 +87,8 @@ export const MAX_FINISHED = 50
 export const NOTICE_RETRY_DELAYS_MS = [0, 1_000, 3_000]
 
 export class MonitorManager {
+  /** Marks the state-file records this manager owns. */
+  readonly token = crypto.randomUUID()
   private running = new Map<string, Record>()
   private finished = new Map<string, Record>()
   private listeners = new Set<(id: string) => void>()
@@ -206,7 +208,7 @@ export class MonitorManager {
   /** Adds a finished monitor read back from the state file. */
   restore(stored: StoredMonitor): void {
     if (this.has(stored.id) || stored.status === "running") return
-    const { ownerPid: _ownerPid, ...fields } = stored
+    const { ownerPid: _ownerPid, ownerToken: _ownerToken, ...fields } = stored
     this.finished.set(stored.id, { ...fields, restored: true, logs: new LogBuffer() })
     while (this.finished.size > MAX_FINISHED) {
       this.finished.delete(this.finished.keys().next().value!)
@@ -309,6 +311,7 @@ export class MonitorManager {
       linesEmitted: r.linesEmitted,
       notice: r.notice,
       ownerPid: process.pid,
+      ownerToken: this.token,
     }))
     try {
       this.store.save(records)
@@ -346,4 +349,14 @@ export class MonitorManager {
   }
 }
 
-export const manager = new MonitorManager()
+/**
+ * The one manager for this OpenCode process. OpenCode loads a separate copy
+ * of the plugin for every open project (and again on every reload), so a
+ * plain module-level instance would give each copy its own list: /monitors
+ * would miss monitors started elsewhere, and one copy's restart recovery would
+ * kill another copy's monitors. Keeping it on globalThis shares it. Bump the
+ * version when the manager's shape changes, so a reloaded copy with new code
+ * does not adopt an old instance.
+ */
+const MANAGER_KEY = Symbol.for("opencode-sentinel.manager.v1")
+export const manager: MonitorManager = ((globalThis as any)[MANAGER_KEY] ??= new MonitorManager())
