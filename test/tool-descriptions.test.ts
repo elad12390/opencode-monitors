@@ -2,18 +2,21 @@ import { describe, expect, test } from "bun:test"
 import { LIST_MONITORS, MONITOR, STOP_MONITOR } from "../src/tools"
 import { v2Setup } from "../src/v2"
 
-// Every tool tells the agent what it does, why to use it, when (and when
-// not), and how, in that order, the same way on V1 and V2.
+// Every tool's description is one short paragraph that tells the agent what
+// it does, why and when to use it (and when not), and how, the same way on V1
+// and V2.
 
 const TOOLS = [MONITOR, STOP_MONITOR, LIST_MONITORS]
 
 describe("tool descriptions", () => {
-  test.each(TOOLS.map((t) => [t.name, t]))("%s says what, why, when and how, in that order", (_name, tool) => {
-    const labels = tool.description.split("\n").map((line) => line.split(":")[0])
-    expect(labels).toEqual(["What", "Why", "When", "How"])
-    for (const line of tool.description.split("\n")) {
-      expect(line.slice(line.indexOf(":") + 1).trim().length).toBeGreaterThan(10)
-    }
+  test.each(TOOLS.map((t) => [t.name, t]))("%s is one short paragraph without section labels", (_name, tool) => {
+    expect(tool.description).not.toContain("\n")
+    expect(tool.description).not.toMatch(/\b(What|Why|When|How):/)
+    expect(tool.description.length).toBeLessThan(1_000)
+  })
+
+  test.each(TOOLS.map((t) => [t.name, t]))("%s says when to use it", (_name, tool) => {
+    expect(tool.description).toContain("Use it ")
   })
 
   test.each(TOOLS.map((t) => [t.name, t]))("%s names its tools by what they do, in snake_case", (_name, tool) => {

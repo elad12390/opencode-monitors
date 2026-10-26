@@ -79,7 +79,7 @@ The agent will call the appropriate tools:
 | `stop_monitor` | Stop a monitor by its description or its ID |
 | `list_monitors` | List all running monitors |
 
-Each tool's description tells the agent what it does, why and when to use it (and when not), and how, in that order. The text lives in `src/tools.ts`, shared by the V1 and V2 plugins, and `test/tool-descriptions.test.ts` keeps it that way.
+Each tool's description is one short paragraph that tells the agent what it does, why and when to use it (and when not), and how. The text lives in `src/tools.ts`, shared by the V1 and V2 plugins, and `test/tool-descriptions.test.ts` keeps it that way.
 
 ### Important: grep requires `--line-buffered`
 
