@@ -48,6 +48,19 @@ Or via CLI:
 opencode plugin opencode-sentinel
 ```
 
+### OpenCode V2 from a local checkout
+
+V2 loads a local plugin directory by its root `index.ts` (server: tools and the `sentinel` RPC) and root `tui.tsx` (the `/monitors` popup), so point `plugins` at the checkout directory itself:
+
+```jsonc
+// ~/.config/opencode/opencode.jsonc
+{
+  "plugins": ["file:///path/to/opencode-sentinel"]
+}
+```
+
+A project-level `opencode.json` only applies inside a git repository; outside one, OpenCode doesn't read it.
+
 ## Usage
 
 ### Log Monitoring

@@ -170,6 +170,9 @@ describe("/monitors popup", () => {
     await render(source, notices)
     await frameWhen((f) => f.includes("API error log"))
 
+    const frame = await frameWhen((f) => f.includes("esc close"))
+    expect(frame).toContain("↑↓ select · enter full logs · esc close")
+
     setup!.mockInput.pressKey("k")
     await Bun.sleep(50)
     expect(stopped).toEqual([])

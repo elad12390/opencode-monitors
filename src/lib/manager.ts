@@ -8,6 +8,7 @@ import { LogBuffer, type LogLine, type LogStream } from "./logs"
  * - until: its `until` pattern matched
  * - flood: it printed more than the flood limit
  * - slow-filter: its filter/until pattern took too long on one line
+ * - filter-error: its filter/until pattern could not run
  */
 export type MonitorStatus =
   | "running"
@@ -17,6 +18,7 @@ export type MonitorStatus =
   | "until"
   | "flood"
   | "slow-filter"
+  | "filter-error"
 
 export type StopReason = Exclude<MonitorStatus, "running" | "completed" | "failed">
 

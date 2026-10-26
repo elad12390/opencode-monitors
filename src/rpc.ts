@@ -12,7 +12,7 @@ const MONITOR = {
     sessionID: { type: "string" },
     status: {
       type: "string",
-      enum: ["running", "completed", "failed", "stopped", "until", "flood", "slow-filter"],
+      enum: ["running", "completed", "failed", "stopped", "until", "flood", "slow-filter", "filter-error"],
     },
     exitCode: { type: ["number", "null"] },
     signal: { type: ["string", "null"] },

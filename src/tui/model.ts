@@ -9,6 +9,7 @@ export type MonitorStatus =
   | "until"
   | "flood"
   | "slow-filter"
+  | "filter-error"
 
 export interface Monitor {
   id: string
@@ -60,7 +61,22 @@ export function statusLabel(monitor: Monitor, mono = false): StatusLabel {
       return { icon: mono ? "!" : "▲", text: "stopped: flood", tone: "warning" }
     case "slow-filter":
       return { icon: mono ? "!" : "▲", text: "stopped: slow filter", tone: "warning" }
+    case "filter-error":
+      return { icon: mono ? "!" : "▲", text: "stopped: filter error", tone: "warning" }
   }
+}
+
+/** A readable message for an Error, an RPC failure object ({ type, message }) or anything else. */
+export function describeError(error: unknown): string {
+  if (error instanceof Error) return error.message
+  if (error && typeof error === "object") {
+    const { type, message } = error as { type?: unknown; message?: unknown }
+    if (typeof message === "string") return typeof type === "string" ? `${message} (${type})` : message
+    try {
+      return JSON.stringify(error)
+    } catch {}
+  }
+  return String(error)
 }
 
 /** "4s", "3m 12s", "2h 05m". */

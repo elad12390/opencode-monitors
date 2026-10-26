@@ -55,6 +55,10 @@ type RpcHandler = (
 /** Coalesces monitor changes into at most one `changed` event per monitor every 250 ms. */
 const CHANGE_EVENT_INTERVAL_MS = 250
 
+function asJson<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value))
+}
+
 async function registerRpc(ctx: V2Context): Promise<() => void> {
   if (typeof ctx.rpc?.register !== "function") return () => {}
   const { SentinelRpc } = await import("./rpc")
@@ -62,10 +66,12 @@ async function registerRpc(ctx: V2Context): Promise<() => void> {
     context.error("not_found", `Monitor not found: ${id}`, { id })
 
   const registration = await ctx.rpc.register(SentinelRpc, {
-    list: async () => ({ monitors: manager.all() }),
+    // OpenCode validates the output against the schema and rejects a key that
+    // is present with an undefined value, so send what JSON would carry.
+    list: async () => ({ monitors: asJson(manager.all()) }),
     logs: async ({ id, limit }, context) => {
       const lines = manager.logs(id, limit)
-      return lines ? { lines } : notFound(context, id)
+      return lines ? { lines: asJson(lines) } : notFound(context, id)
     },
     stop: async ({ id }, context) => {
       if (manager.get(id)) {

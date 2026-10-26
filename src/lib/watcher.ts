@@ -107,12 +107,19 @@ export function startWatcher(params: {
       try {
         result = await matcher!.match(line)
       } catch (err) {
-        if (err instanceof MatchTimeoutError && !selfStopped) {
+        if (selfStopped) return
+        if (err instanceof MatchTimeoutError) {
           notify(
             `[monitor:${params.id}] ${err.message}. Monitor auto-stopped; use a simpler pattern.`,
             "slow-regex",
           )
           stopSelf("slow-filter")
+        } else if (params.manager.get(params.id)) {
+          notify(
+            `[monitor:${params.id}] filter/until could not run: ${err instanceof Error ? err.message : err}. Monitor auto-stopped.`,
+            "filter-error",
+          )
+          stopSelf("filter-error")
         }
         return
       }

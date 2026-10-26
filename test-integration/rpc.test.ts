@@ -88,6 +88,9 @@ describe("sentinel RPC", () => {
 
     expect(monitors).toHaveLength(1)
     expect(monitors[0]).toMatchObject({ id, status: "running", description: "rpc test", sessionID: "ses_rpc" })
+    // OpenCode's output validation rejects keys that are present but undefined.
+    expect(monitors).toStrictEqual(JSON.parse(JSON.stringify(monitors)))
+    expect(lines).toStrictEqual(JSON.parse(JSON.stringify(lines)))
     expect(lines.map((l: any) => [l.stream, l.text]).sort()).toEqual([
       ["stderr", "err-line"],
       ["stdout", "out-line"],

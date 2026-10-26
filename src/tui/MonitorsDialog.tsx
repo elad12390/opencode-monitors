@@ -4,6 +4,7 @@ import { useKeyboard, useTerminalDimensions } from "@opentui/solid"
 import { createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js"
 import {
   clock,
+  describeError,
   formatCount,
   logWindow,
   reselect,
@@ -42,7 +43,7 @@ export function paletteFromTheme(theme: any): Palette {
     muted: theme.text.muted,
     faint: theme.text.faint,
     border: theme.border.base,
-    selectedBg: theme.background.raised.high,
+    selectedBg: theme.background.raised.max,
     running: theme.text.feedback.info.base,
     success: theme.text.feedback.success.base,
     error: theme.text.feedback.error.base,
@@ -107,7 +108,7 @@ export function MonitorsDialog(props: {
     } catch (err) {
       if (!disposed) {
         setLoaded(true)
-        setError(err instanceof Error ? err.message : String(err))
+        setError(describeError(err))
       }
     } finally {
       refreshing = false
@@ -162,7 +163,7 @@ export function MonitorsDialog(props: {
         stopped ? "success" : "info",
       )
     } catch (err) {
-      props.notify?.(`Couldn't kill “${monitor.description}”: ${err instanceof Error ? err.message : err}`, "error")
+      props.notify?.(`Couldn't kill “${monitor.description}”: ${describeError(err)}`, "error")
     }
     void refresh()
   }
@@ -171,7 +172,7 @@ export function MonitorsDialog(props: {
   // the rest of the terminal.
   const listRows = createMemo(() => Math.min(Math.max(1, monitors().length), MAX_LIST_ROWS))
   const logRows = createMemo(() => {
-    const reserved = expanded() ? 12 : 16 + listRows()
+    const reserved = expanded() ? 16 : 20 + listRows()
     return Math.max(3, dimensions().height - reserved)
   })
   const visibleLogs = createMemo(() => logWindow(logs(), logRows(), scrollBack()))
@@ -232,11 +233,14 @@ export function MonitorsDialog(props: {
     const arrows = props.mono ? "up/down" : "↑↓"
     if (expanded()) return [`${arrows} scroll`, "pgup/pgdn page", "end follow", "enter back", "esc close"].join(dot)
     if (monitors().length === 0) return "esc close"
-    return [`${arrows} select`, "enter full logs", "k kill", "esc close"].join(dot)
+    const canKill = selected()?.status === "running"
+    return [`${arrows} select`, "enter full logs", canKill ? "k kill" : undefined, "esc close"]
+      .filter(Boolean)
+      .join(dot)
   })
 
   return (
-    <box flexDirection="column" width="100%" paddingLeft={2} paddingRight={2} paddingTop={1} paddingBottom={1}>
+    <box flexDirection="column" width="100%" paddingLeft={2} paddingRight={2} paddingBottom={1}>
       <box flexDirection="row" height={1} flexShrink={0}>
         <text fg={colors().text} attributes={TextAttributes.BOLD} flexShrink={0}>
           Monitors
@@ -283,24 +287,22 @@ export function MonitorsDialog(props: {
                   <text
                     fg={colors().text}
                     attributes={isSelected() ? TextAttributes.BOLD : undefined}
-                    width={26}
-                    flexShrink={0}
+                    flexGrow={1}
+                    flexShrink={1}
+                    minWidth={12}
                     wrapMode="none"
                     truncate
                   >
                     {monitor.description}
                   </text>
-                  <text fg={toneColor(label().tone)} width={20} flexShrink={0} wrapMode="none" truncate>
+                  <text fg={toneColor(label().tone)} width={21} flexShrink={0} wrapMode="none" truncate>
                     {label().text}
                   </text>
-                  <text fg={colors().muted} width={11} flexShrink={0} wrapMode="none">
+                  <text fg={isSelected() ? colors().text : colors().muted} width={11} flexShrink={0} wrapMode="none">
                     {(clockTick(), timing(monitor, now()))}
                   </text>
-                  <text fg={colors().muted} width={12} flexShrink={0} wrapMode="none">
+                  <text fg={isSelected() ? colors().text : colors().muted} width={12} flexShrink={0} wrapMode="none">
                     {formatCount(monitor.linesEmitted, "line")}
-                  </text>
-                  <text fg={colors().faint} flexGrow={1} flexShrink={1} wrapMode="none" truncate>
-                    {monitor.command}
                   </text>
                 </box>
               )
