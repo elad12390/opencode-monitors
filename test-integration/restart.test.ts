@@ -86,7 +86,7 @@ describe("OpenCode restarts", () => {
     expect(await until(() => told.length === 1)).toBe(true)
     expect(told[0].sessionID).toBe("ses_crash")
     expect(told[0].text).toContain(`[monitor:${id}] "crash survivor" stopped because OpenCode restarted`)
-    expect(told[0].text).toContain(`start it again with sentinel_monitor (command: "sleep 300")`)
+    expect(told[0].text).toContain(`start it again with monitor (command: "sleep 300")`)
 
     const state = JSON.parse(readFileSync(file, "utf8"))
     expect(state).toEqual([
@@ -143,8 +143,8 @@ describe("unloading the plugin", () => {
     const disposeWeb = (await v2Setup(web.ctx)) as () => void
     cleanups.push(disposeWeb)
 
-    await api.tools().sentinel_monitor.execute({ command: "sleep 30", description: "api watch" }, { sessionID: "ses_api" })
-    await web.tools().sentinel_monitor.execute({ command: "sleep 30", description: "web watch" }, { sessionID: "ses_web" })
+    await api.tools().monitor.execute({ command: "sleep 30", description: "api watch" }, { sessionID: "ses_api" })
+    await web.tools().monitor.execute({ command: "sleep 30", description: "web watch" }, { sessionID: "ses_web" })
     const [webMonitor, apiMonitor] = manager.all()
     const apiPid = apiMonitor.pid!
 
@@ -154,7 +154,7 @@ describe("unloading the plugin", () => {
 
     expect(api.prompts[0]).toEqual({
       sessionID: "ses_api",
-      text: `[monitor:${apiMonitor.id}] "api watch" stopped because the Sentinel plugin was unloaded or OpenCode shut down. It is no longer running. If you still need it, start it again with sentinel_monitor (command: "sleep 30").`,
+      text: `[monitor:${apiMonitor.id}] "api watch" stopped because the monitors plugin was unloaded or OpenCode shut down. It is no longer running. If you still need it, start it again with monitor (command: "sleep 30").`,
     })
     expect(manager.all().find((m) => m.id === webMonitor.id)?.status).toBe("running")
     expect(alive(webMonitor.pid!)).toBe(true)
@@ -165,7 +165,7 @@ describe("unloading the plugin", () => {
     const api = host("/work/api")
     cleanups.push((await v2Setup(api.ctx)) as () => void)
 
-    await api.tools().sentinel_monitor.execute(
+    await api.tools().monitor.execute(
       { command: "echo build done", description: "build" },
       { sessionID: "ses_api" },
     )

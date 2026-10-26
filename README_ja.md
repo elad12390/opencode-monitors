@@ -46,15 +46,13 @@ opencode-sentinel は単一パッケージで OpenCode **V1** と **V2** の両�
 ### ログ監視
 
 ```
-sentinel_monitor で /var/log/app.log の ERROR 行を監視して
+monitor で /var/log/app.log の ERROR 行を監視して
 ```
 
 エージェントが以下のツールを呼び出します：
-- `sentinel_monitor` — 監視開始（コマンド + 説明ラベル）
-- `sentinel_stop` — 指定した monitor を停止
-- `sentinel_list` — 実行中の monitor 一覧
-- `sentinel_ping` — ヘルスチェック（"pong" を返す）
-- `sentinel_spike` — スパイクテスト（3 秒遅延の steer 配信、V1 専用）
+- `monitor` — 監視開始（コマンド + 説明ラベル）
+- `stop_monitor` — 指定した monitor を停止
+- `list_monitors` — 実行中の monitor 一覧
 
 ### grep を使う場合の注意
 
@@ -70,7 +68,7 @@ sentinel_monitor で /var/log/app.log の ERROR 行を監視して
 JavaScript の正規表現を `filter` に渡すと、マッチした行だけ通知します:
 
 ```
-sentinel_monitor with:
+monitor with:
   command: tail -f /var/log/app.log | grep --line-buffered -E "(ERROR|WARN)"
   filter: "ERROR"
 ```
@@ -83,7 +81,7 @@ ERROR 行だけが通知され、WARN 行は通知されません。
 「CI が終わったら起こして」のような sleep ポーリング不要のパターンに最適:
 
 ```
-sentinel_monitor with:
+monitor with:
   command: gh run watch <run-id>
   until: "(completed|failed)"
 ```
@@ -92,7 +90,7 @@ sentinel_monitor with:
 `filter` と組み合わせて、まずストリームを絞ってから `until` を評価することもできます:
 
 ```
-sentinel_monitor with:
+monitor with:
   command: tail -f build.log
   filter: "(error|fatal)"
   until: "BUILD (SUCCESS|FAILED)"

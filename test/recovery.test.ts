@@ -84,7 +84,7 @@ describe("recovering monitors after OpenCode restarts", () => {
     expect(told).toEqual([
       {
         sessionID: "ses_1",
-        text: `[monitor:mon_a] "API log" stopped because OpenCode restarted (noticed at 2026-10-26T11:00:00.000Z). It is no longer running. If you still need it, start it again with sentinel_monitor (command: "tail -f api.log").`,
+        text: `[monitor:mon_a] "API log" stopped because OpenCode restarted (noticed at 2026-10-26T11:00:00.000Z). It is no longer running. If you still need it, start it again with monitor (command: "tail -f api.log").`,
       },
     ])
     expect(saved().find((r) => r.id === "mon_a")).toMatchObject({ notice: "sent", ownerPid: process.pid })

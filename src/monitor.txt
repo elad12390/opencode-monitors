@@ -1,4 +1,4 @@
-sentinel_monitor — watch a background command and get its output as it happens
+monitor — watch a background command and get its output as it happens
 
 Starts a shell command in the background and sends each new stdout line to this session as a message, so you can react to an event without polling or a sleep loop. You can keep working; an idle session wakes up when a line arrives.
 
@@ -32,7 +32,7 @@ An invalid regex returns an error and nothing starts.
 ## What arrives and when
 - Lines are grouped: everything printed within 200 ms comes as one message, each line prefixed with [monitor:<id>]
 - You are always told when a monitor ends, after its last output: the command finished (exit 0) or failed, the user killed it from /monitors, or it stopped because the plugin unloaded or OpenCode restarted. A monitor does not survive an OpenCode restart; when told it stopped, decide whether to start it again (the message includes the command)
-- Stopping a monitor yourself with sentinel_stop sends no extra message
+- Stopping a monitor yourself with stop_monitor sends no extra message
 - stderr is not sent; it is kept in /tmp/sentinel-<id>-stderr.log and shown in /monitors
 
 ## Limits (the monitor stops and tells you)
@@ -41,6 +41,6 @@ An invalid regex returns an error and nothing starts.
 - Lines longer than 64K characters are cut and marked
 
 ## Related
-- sentinel_stop: stop a monitor by ID once you no longer need it
-- sentinel_list: list running monitors
+- stop_monitor: stop a monitor by ID once you no longer need it
+- list_monitors: list running monitors
 - The user can see every monitor, read its output and kill it with the /monitors command

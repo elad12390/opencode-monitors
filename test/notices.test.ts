@@ -39,7 +39,7 @@ describe("end notices", () => {
     expect(told).toEqual([`[monitor:a] "monitor a" was killed by the user from /monitors. It is no longer running.`])
   })
 
-  test("the agent's own sentinel_stop and a deleted session send no notice", async () => {
+  test("the agent's own stop_monitor and a deleted session send no notice", async () => {
     const { manager, told, entry } = setup()
     manager.start(entry("a"))
     manager.start(entry("b"))
@@ -62,7 +62,7 @@ describe("end notices", () => {
     expect(byID.mine).toMatchObject({ status: "stopped", endReason: "unload" })
     expect(byID.theirs.status).toBe("running")
     expect(told).toEqual([
-      `[monitor:mine] "monitor mine" stopped because the Sentinel plugin was unloaded or OpenCode shut down. It is no longer running. If you still need it, start it again with sentinel_monitor (command: "watch mine").`,
+      `[monitor:mine] "monitor mine" stopped because the monitors plugin was unloaded or OpenCode shut down. It is no longer running. If you still need it, start it again with monitor (command: "watch mine").`,
     ])
   })
 

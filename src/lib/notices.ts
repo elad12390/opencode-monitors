@@ -1,18 +1,18 @@
 // What the agent is told when a monitor ends for a reason it did not see
 // itself. Ends the watcher already reports as they happen (until, flood, slow
-// or failing filter) and ends the agent caused (sentinel_stop) have no notice
+// or failing filter) and ends the agent caused (stop_monitor) have no notice
 // here.
 
 export type EndReason =
   /** The command exited by itself. */
   | "exit"
-  /** The agent stopped it with sentinel_stop. */
+  /** The agent stopped it with stop_monitor. */
   | "agent"
   /** The user killed it from /monitors. */
   | "user"
   /** Its session was deleted. */
   | "session"
-  /** The Sentinel plugin was unloaded or OpenCode shut down. */
+  /** The plugin was unloaded or OpenCode shut down. */
   | "unload"
   /** OpenCode stopped without unloading the plugin (restart or crash). */
   | "restart"
@@ -36,7 +36,7 @@ export interface EndedMonitor {
 }
 
 const restartHint = (monitor: EndedMonitor) =>
-  ` If you still need it, start it again with sentinel_monitor (command: ${JSON.stringify(monitor.command)}).`
+  ` If you still need it, start it again with monitor (command: ${JSON.stringify(monitor.command)}).`
 
 export function endNotice(monitor: EndedMonitor): string | undefined {
   const name = `[monitor:${monitor.id}] "${monitor.description}"`
@@ -52,7 +52,7 @@ export function endNotice(monitor: EndedMonitor): string | undefined {
     case "user":
       return `${name} was killed by the user from /monitors. It is no longer running.`
     case "unload":
-      return `${name} stopped because the Sentinel plugin was unloaded or OpenCode shut down. It is no longer running.${restartHint(monitor)}`
+      return `${name} stopped because the monitors plugin was unloaded or OpenCode shut down. It is no longer running.${restartHint(monitor)}`
     case "restart":
       return `${name} stopped because OpenCode restarted${monitor.endedAt ? ` (noticed at ${monitor.endedAt})` : ""}. It is no longer running.${restartHint(monitor)}`
     default:

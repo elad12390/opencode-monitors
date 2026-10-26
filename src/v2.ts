@@ -179,7 +179,7 @@ export async function v2Setup(
 
   await ctx.tool.transform((editor) => {
     editor.add({
-      name: "sentinel_monitor",
+      name: "monitor",
       description,
       input: MONITOR_INPUT,
       async execute(input: any, context) {
@@ -202,7 +202,7 @@ export async function v2Setup(
     })
 
     editor.add({
-      name: "sentinel_stop",
+      name: "stop_monitor",
       description:
         "Stop a running monitor by its ID. The monitor process will be terminated and its resources freed.",
       input: {
@@ -211,7 +211,7 @@ export async function v2Setup(
           id: {
             type: "string",
             description:
-              "The monitor ID to stop (returned by sentinel_monitor when started)",
+              "The monitor ID to stop (returned by monitor when started)",
           },
         },
         required: ["id"],
@@ -223,22 +223,12 @@ export async function v2Setup(
     })
 
     editor.add({
-      name: "sentinel_list",
+      name: "list_monitors",
       description:
         "List all currently running monitors with their status (ID, description, command, started time, lines emitted).",
       input: EMPTY_INPUT,
       async execute() {
         return { content: listMonitors() }
-      },
-    })
-
-    editor.add({
-      name: "sentinel_ping",
-      description:
-        "Health check for the sentinel plugin. Returns pong if the plugin is loaded and operational.",
-      input: EMPTY_INPUT,
-      async execute() {
-        return { content: "pong" }
       },
     })
   })

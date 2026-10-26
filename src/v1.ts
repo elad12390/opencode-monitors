@@ -1,14 +1,8 @@
-import { tool } from "@opencode-ai/plugin"
 import { createOpencodeClient } from "@opencode-ai/sdk/v2"
 import { createMonitorTool } from "./monitor.tool"
-import { sentinel_list } from "./list.tool"
-import { sentinel_stop } from "./stop.tool"
+import { list_monitors } from "./list.tool"
+import { stop_monitor } from "./stop.tool"
 import { manager } from "./lib/manager"
-
-interface ToolContext {
-  sessionID: string
-  abort: AbortSignal
-}
 
 /**
  * V1 plugin implementation.
@@ -32,41 +26,11 @@ export async function v1Server(input: any, _options?: unknown) {
 
   return {
     tool: {
-      sentinel_monitor: createMonitorTool(v2),
+      monitor: createMonitorTool(v2),
 
-      sentinel_stop,
+      stop_monitor,
 
-      sentinel_list,
-
-      sentinel_ping: tool({
-        description: "Health check for the sentinel plugin. Returns pong if the plugin is loaded and operational.",
-        args: {},
-        async execute() {
-          return "pong"
-        },
-      }),
-
-      sentinel_spike: tool({
-        description: "Spike test: schedules a delayed message delivery to verify the wake mechanism works. Returns 'scheduled' immediately, then after 3 seconds sends '[spike] hello' to the session as a message.",
-        args: {},
-        async execute(_args: Record<string, never>, ctx: ToolContext) {
-          const sessionID = ctx.sessionID
-          setTimeout(async () => {
-            try {
-              const result = await v2.session.prompt({
-                sessionID,
-                parts: [{ type: "text", text: "[spike] hello from sentinel — delivery test" }],
-              })
-              if (result.error) {
-                console.error("[sentinel_spike] delivery failed:", result.error)
-              }
-            } catch (err) {
-              console.error("[sentinel_spike] delivery failed:", err)
-            }
-          }, 3000)
-          return "scheduled — message delivery will fire in 3 seconds"
-        },
-      }),
+      list_monitors,
     },
 
     dispose: async () => {

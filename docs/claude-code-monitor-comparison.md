@@ -10,7 +10,7 @@ Legend: ✅ supported · ⚠️ partly · ❌ missing · ➖ not documented
 
 | Capability | Claude Code Monitor | Sentinel | Notes |
 |---|---|---|---|
-| Agent starts a background command and gets each output line | ✅ | ✅ | `Monitor` with `command`; `sentinel_monitor` with `command` |
+| Agent starts a background command and gets each output line | ✅ | ✅ | `Monitor` with `command`; `monitor` with `command` |
 | Agent connects to a WebSocket feed directly | ✅ | ❌ | Claude Code: `ws` input with `url` and `protocols`. Each text message is one event, binary frames become a placeholder, and messages over 1 MiB or a socket close end the watch |
 | Plugin declares monitors that start on their own | ✅ | ❌ | Claude Code: `monitors/monitors.json`, with `when: "always"` (session start and plugin reload) or `"on-skill-invoke:<skill>"` |
 | Short description shown to the user | ✅ | ✅ | Sentinel requires `description` |
@@ -33,7 +33,7 @@ Legend: ✅ supported · ⚠️ partly · ❌ missing · ➖ not documented
 | Capability | Claude Code Monitor | Sentinel | Notes |
 |---|---|---|---|
 | Deadline | ✅ 5 min default, 30 min max, 10 min in `-p` runs, with one notice at the deadline | ❌ | Sentinel monitors run until stopped, the command exits or the session is deleted |
-| Agent or user cancels it | ✅ ask Claude, or `TaskStop` | ✅ | `sentinel_stop` |
+| Agent or user cancels it | ✅ ask Claude, or `TaskStop` | ✅ | `stop_monitor` |
 | Stops when the session ends | ✅ | ⚠️ | Sentinel stops on `session.deleted`, and unloading the plugin in a project stops that project's monitors (with a notice); a session that merely goes idle keeps its monitors |
 | Stops with the subagent that started it | ✅ | ❌ | Sentinel only ties monitors to the session ID that started them |
 | UI to see and stop watches | ✅ task panel and `/tasks` | ✅ | `/monitors` popup: status, logs, kill, filter by project |

@@ -62,7 +62,7 @@ export function startMonitor(params: StartMonitorParams): string {
     owner: params.owner,
     deliver: params.deliver,
   })
-  return `Monitor started: ${id}\nCommand: ${params.command}\nUse sentinel_stop to stop it. You will be told when it ends, including when OpenCode restarts.`
+  return `Monitor started: ${id}\nCommand: ${params.command}\nUse stop_monitor to stop it. You will be told when it ends, including when OpenCode restarts.`
 }
 
 export function stopMonitor(id: string): string {

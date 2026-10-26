@@ -137,35 +137,23 @@ describe("v2Setup", () => {
     ).toBeUndefined()
   })
 
-  test("registers the sentinel tools and returns a disposer", async () => {
+  test("registers monitor, stop_monitor and list_monitors, and returns a disposer", async () => {
     const { ctx, tools } = makeCtx()
     const disposer = await v2Setup(ctx)
 
     expect(typeof disposer).toBe("function")
     expect(tools.map((t) => t.name).sort()).toEqual([
-      "sentinel_list",
-      "sentinel_monitor",
-      "sentinel_ping",
-      "sentinel_stop",
+      "list_monitors",
+      "monitor",
+      "stop_monitor",
     ])
   })
 
-  test("sentinel_ping returns pong", async () => {
-    const { ctx, tools } = makeCtx()
-    await v2Setup(ctx)
-
-    const result = await toolByName(tools, "sentinel_ping").execute(
-      {},
-      { sessionID: "ses_x" },
-    )
-    expect(result).toEqual({ content: "pong" })
-  })
-
-  test("sentinel_monitor delivers stdout lines with delivery: steer", async () => {
+  test("monitor delivers stdout lines with delivery: steer", async () => {
     const { ctx, tools, promptCalls } = makeCtx()
     await v2Setup(ctx)
 
-    const start = await toolByName(tools, "sentinel_monitor").execute(
+    const start = await toolByName(tools, "monitor").execute(
       { command: "echo line", description: "e2e" },
       { sessionID: "ses_v2" },
     )
@@ -180,29 +168,29 @@ describe("v2Setup", () => {
     expect(promptCalls[0].text).toContain("HELLO_V2")
   })
 
-  test("sentinel_list and sentinel_stop manage monitors", async () => {
+  test("list_monitors and stop_monitor manage monitors", async () => {
     const { ctx, tools } = makeCtx()
     await v2Setup(ctx)
 
-    const start = await toolByName(tools, "sentinel_monitor").execute(
+    const start = await toolByName(tools, "monitor").execute(
       { command: "sleep 1", description: "longjob" },
       { sessionID: "ses_v2" },
     )
     const id = start.content.match(/Monitor started: (\S+)/)![1]
 
-    const listed = await toolByName(tools, "sentinel_list").execute(
+    const listed = await toolByName(tools, "list_monitors").execute(
       {},
       { sessionID: "ses_v2" },
     )
     expect(listed.content).toContain("longjob")
 
-    const stopped = await toolByName(tools, "sentinel_stop").execute(
+    const stopped = await toolByName(tools, "stop_monitor").execute(
       { id },
       { sessionID: "ses_v2" },
     )
     expect(stopped.content).toBe(`Monitor ${id} stopped.`)
 
-    const after = await toolByName(tools, "sentinel_list").execute(
+    const after = await toolByName(tools, "list_monitors").execute(
       {},
       { sessionID: "ses_v2" },
     )
@@ -216,7 +204,7 @@ describe("v2Setup", () => {
     expect(state.subscribed).toBe(true)
     expect(state.signal!.aborted).toBe(false)
 
-    await toolByName(tools, "sentinel_monitor").execute(
+    await toolByName(tools, "monitor").execute(
       { command: "sleep 1", description: "x" },
       { sessionID: "ses_v2" },
     )
@@ -231,11 +219,11 @@ describe("v2Setup", () => {
     const { ctx, tools, pushEvent } = makeCtx()
     await v2Setup(ctx)
 
-    const a = await toolByName(tools, "sentinel_monitor").execute(
+    const a = await toolByName(tools, "monitor").execute(
       { command: "sleep 1", description: "a" },
       { sessionID: "ses_a" },
     )
-    const b = await toolByName(tools, "sentinel_monitor").execute(
+    const b = await toolByName(tools, "monitor").execute(
       { command: "sleep 1", description: "b" },
       { sessionID: "ses_b" },
     )

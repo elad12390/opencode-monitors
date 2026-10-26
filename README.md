@@ -68,18 +68,16 @@ A project-level `opencode.json` only applies inside a git repository; outside on
 Just ask the agent in natural language:
 
 ```
-Monitor /var/log/app.log for ERROR lines using sentinel_monitor
+Watch /var/log/app.log and tell me when an ERROR line shows up
 ```
 
 The agent will call the appropriate tools:
 
 | Tool | Description |
 |------|-------------|
-| `sentinel_monitor` | Start monitoring (command + description label) |
-| `sentinel_stop` | Stop a monitor by ID |
-| `sentinel_list` | List all running monitors |
-| `sentinel_ping` | Health check — returns "pong" |
-| `sentinel_spike` | Spike test — 3-second delayed steer delivery (V1 only) |
+| `monitor` | Start monitoring (command + description label) |
+| `stop_monitor` | Stop a monitor by ID |
+| `list_monitors` | List all running monitors |
 
 ### Important: grep requires `--line-buffered`
 
@@ -97,7 +95,7 @@ Without `--line-buffered`, grep buffers output and lines won't arrive in real-ti
 Pass a JavaScript regex to `filter` to receive only matching lines:
 
 ```
-sentinel_monitor with:
+monitor with:
   command: tail -f /var/log/app.log | grep --line-buffered -E "(ERROR|WARN)"
   filter: "ERROR"
 ```
@@ -109,7 +107,7 @@ Only ERROR lines arrive as notifications; WARN lines are silently dropped.
 Use `until` to auto-stop the monitor when a matching line appears — ideal for "wake me when CI finishes" patterns without sleep polling:
 
 ```
-sentinel_monitor with:
+monitor with:
   command: gh run watch <run-id>
   until: "(completed|failed)"
 ```
@@ -117,7 +115,7 @@ sentinel_monitor with:
 When `until` matches, the line is delivered and the monitor is terminated automatically. Combine with `filter` to narrow the stream first:
 
 ```
-sentinel_monitor with:
+monitor with:
   command: tail -f build.log
   filter: "(error|fatal)"
   until: "BUILD (SUCCESS|FAILED)"
@@ -129,7 +127,7 @@ sentinel_monitor with:
 
 ### The agent always hears how a monitor ended
 
-Besides its output, the agent gets one message when a monitor ends: the command finished (exit 0), failed (exit code or signal), was killed from `/monitors`, matched `until`, was stopped for flooding or a slow filter, or stopped because the plugin unloaded. When it would make sense to restart it, the message includes the command. Stopping a monitor with `sentinel_stop` sends nothing, since the tool's reply already says so.
+Besides its output, the agent gets one message when a monitor ends: the command finished (exit 0), failed (exit code or signal), was killed from `/monitors`, matched `until`, was stopped for flooding or a slow filter, or stopped because the plugin unloaded. When it would make sense to restart it, the message includes the command. Stopping a monitor with `stop_monitor` sends nothing, since the tool's reply already says so.
 
 On OpenCode V2 every monitor is also recorded in `~/.local/state/opencode-sentinel/monitors.json` (override with `SENTINEL_STATE_FILE`). If OpenCode restarts or crashes, the next start:
 

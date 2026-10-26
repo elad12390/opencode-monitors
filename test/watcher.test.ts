@@ -189,7 +189,7 @@ describe("startWatcher", () => {
     await new Promise((r) => setTimeout(r, 50))
 
     expect(deliverCalls).toContain(
-      `[monitor:mon_exit] "monitor mon_exit" ended: the command exited with code 1. It is no longer running. If you still need it, start it again with sentinel_monitor (command: "test").`,
+      `[monitor:mon_exit] "monitor mon_exit" ended: the command exited with code 1. It is no longer running. If you still need it, start it again with monitor (command: "test").`,
     )
   })
 
