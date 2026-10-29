@@ -44,7 +44,19 @@ jobs:
             exit 1
           fi
 
+      - name: Check whether this version is already on npm
+        id: published
+        run: |
+          spec="$(node -p "require('./package.json').name")@${GITHUB_REF_NAME#v}"
+          if npm view "$spec" version >/dev/null 2>&1; then
+            echo "already=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::$spec is already on npm; skipping publish"
+          else
+            echo "already=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Publish to npm with provenance
+        if: steps.published.outputs.already != 'true'
         run: npm publish --provenance --access public
 
       - name: Create the GitHub release from the changelog

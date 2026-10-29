@@ -1,6 +1,6 @@
 {
   "name": "opencode-monitors",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Claude Code-style background monitors for OpenCode: the agent watches a command's output and reacts to each new line, and you see, read and kill monitors with /monitors.",
   "type": "module",
   "main": "src/index.ts",
