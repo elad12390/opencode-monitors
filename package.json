@@ -1,52 +1,67 @@
 {
-  "name": "opencode-sentinel",
-  "version": "0.2.0",
+  "name": "opencode-monitors",
+  "version": "0.3.0",
+  "description": "Claude Code-style background monitors for OpenCode: the agent watches a command's output and reacts to each new line, and you see, read and kill monitors with /monitors.",
   "type": "module",
   "main": "src/index.ts",
   "files": [
     "src",
+    "dist",
     "README.md",
-    "README_ja.md",
     "CHANGELOG.md",
     "LICENSE"
   ],
   "license": "MIT",
+  "author": "elad12390",
+  "contributors": [
+    "Kiryu Tsukimiya (original opencode-sentinel)"
+  ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/tsukimiya/opencode-sentinel.git"
+    "url": "git+https://github.com/elad12390/opencode-monitors.git"
   },
-  "homepage": "https://github.com/tsukimiya/opencode-sentinel#readme",
+  "homepage": "https://github.com/elad12390/opencode-monitors#readme",
   "bugs": {
-    "url": "https://github.com/tsukimiya/opencode-sentinel/issues"
+    "url": "https://github.com/elad12390/opencode-monitors/issues"
   },
   "keywords": [
     "opencode",
-    "plugin",
+    "opencode-plugin",
     "monitor",
-    "sentinel",
-    "cli",
+    "background",
     "tail",
-    "log"
+    "logs",
+    "agent",
+    "claude-code"
   ],
   "scripts": {
+    "build": "bun scripts/build-tui.ts",
+    "prepack": "bun run build",
     "typecheck": "tsc --noEmit",
     "test": "bun test ./test/ --preload ./test/preload.ts",
     "test:perf": "bun test ./perf/ --timeout 60000 --preload ./test/preload.ts",
     "test:tui": "bun test ./test-tui/ --preload @opentui/solid/preload --preload ./test/preload.ts",
     "test:integration": "bun test ./test-integration/ --preload ./test/preload.ts",
+    "test:package": "bun scripts/package-smoke.ts",
     "test:all": "bun run test && bun run test:integration && bun run test:tui && bun run test:perf"
   },
   "peerDependencies": {
     "@opencode-ai/plugin": ">=1.14.34",
-    "@opencode-ai/sdk": ">=1.14.34"
+    "@opencode-ai/sdk": ">=1.14.34",
+    "@opencode/plugin": ">=2.1.0",
+    "@opentui/core": ">=0.6.8",
+    "@opentui/solid": ">=0.6.8",
+    "solid-js": ">=1.9.0",
+    "zod": ">=3"
   },
   "peerDependenciesMeta": {
-    "@opencode-ai/plugin": {
-      "optional": true
-    },
-    "@opencode-ai/sdk": {
-      "optional": true
-    }
+    "@opencode-ai/plugin": { "optional": true },
+    "@opencode-ai/sdk": { "optional": true },
+    "@opencode/plugin": { "optional": true },
+    "@opentui/core": { "optional": true },
+    "@opentui/solid": { "optional": true },
+    "solid-js": { "optional": true },
+    "zod": { "optional": true }
   },
   "devDependencies": {
     "@opencode-ai/plugin": "1.17.15",
@@ -62,7 +77,7 @@
   },
   "exports": {
     ".": "./src/index.ts",
-    "./tui": "./src/tui.tsx",
+    "./tui": "./dist/tui.js",
     "./rpc": "./src/rpc.ts"
   }
 }

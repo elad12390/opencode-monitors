@@ -8,7 +8,7 @@ import path from "node:path"
 // one: /monitors in any project sees every monitor, and a project opening
 // later never kills monitors another project started.
 
-const SOURCE = process.env.SENTINEL_SOURCE_UNDER_TEST ?? path.join(import.meta.dir, "..")
+const SOURCE = process.env.MONITORS_SOURCE_UNDER_TEST ?? path.join(import.meta.dir, "..")
 const COPIES = path.join(import.meta.dir, "..", "tmp", `plugin-copies-${process.pid}`)
 
 async function loadCopy(name: string) {
@@ -79,12 +79,12 @@ describe("one plugin copy per open project", () => {
     expect(alive(pid)).toBe(true)
     expect((await docs.list()).map((m) => [m.id, m.status])).toEqual([[id, "running"]])
 
-    const state = JSON.parse(readFileSync(process.env.SENTINEL_STATE_FILE!, "utf8"))
+    const state = JSON.parse(readFileSync(process.env.OPENCODE_MONITORS_STATE_FILE!, "utf8"))
     expect(state.filter((r: any) => r.id === id).map((r: any) => r.status)).toEqual(["running"])
 
     // Starting another monitor from a different copy keeps the first in the state file.
     await web.tools.monitor.execute({ command: "sleep 30", description: "web dev" }, { sessionID: "ses_web" })
-    const after = JSON.parse(readFileSync(process.env.SENTINEL_STATE_FILE!, "utf8"))
+    const after = JSON.parse(readFileSync(process.env.OPENCODE_MONITORS_STATE_FILE!, "utf8"))
     expect(after.map((r: any) => r.description).sort()).toEqual(["api build", "web dev"])
   }, 20_000)
 

@@ -1,5 +1,4 @@
 import { spawn, type ChildProcess } from "node:child_process"
-import fs from "node:fs"
 import { createLineSplitter } from "./lines"
 import type { Deliver, MonitorManager, StopReason } from "./manager"
 import { createMatcher, MatchTimeoutError } from "./matcher"
@@ -29,7 +28,8 @@ export function startWatcher(params: {
     shell: true,
     detached: true,
     stdio: ["ignore", "pipe", "pipe"],
-    env: { ...process.env, SENTINEL_SESSION_ID: params.sessionID },
+    // SENTINEL_SESSION_ID keeps scripts written for opencode-sentinel working.
+    env: { ...process.env, MONITOR_SESSION_ID: params.sessionID, SENTINEL_SESSION_ID: params.sessionID },
   })
 
   let batchBuffer: string[] = []
@@ -58,7 +58,7 @@ export function startWatcher(params: {
   function notify(text: string, label: string): Promise<void> {
     return params.deliver(text).catch((err: unknown) => {
       console.error(
-        `[sentinel] ${label} notify failed for ${params.id}:`,
+        `[opencode-monitors] ${label} notify failed for ${params.id}:`,
         err,
       )
     })
@@ -159,11 +159,10 @@ export function startWatcher(params: {
     }
   })
 
+  // stderr stays in memory: /monitors shows it, and a failure notice quotes
+  // its last lines. Nothing is written to disk.
   proc.stderr!.on("data", (chunk: Buffer) => {
-    const logPath = `/tmp/sentinel-${params.id}-stderr.log`
-    const text = chunk.toString()
-    fs.appendFileSync(logPath, text)
-    for (const line of splitErrorLines(text)) {
+    for (const line of splitErrorLines(chunk.toString())) {
       if (line.trim()) params.manager.appendLog(params.id, "stderr", line)
     }
   })

@@ -1,6 +1,6 @@
 import type { ChildProcess } from "node:child_process"
 import { LogBuffer, type LogLine, type LogStream } from "./logs"
-import { ANNOUNCED_ENDS, endNotice, type EndReason } from "./notices"
+import { ANNOUNCED_ENDS, endNotice, FAILURE_STDERR_LINES, type EndReason } from "./notices"
 import type { MonitorStore, NoticeState, StoredMonitor } from "./state"
 
 /** Delivers a notification string to the monitored session. */
@@ -174,7 +174,16 @@ export class MonitorManager {
   async announce(id: string, deliver?: Deliver, delays = NOTICE_RETRY_DELAYS_MS): Promise<boolean> {
     const record = this.finished.get(id)
     const send = deliver ?? record?.deliver
-    const text = record && endNotice(record)
+    const text =
+      record &&
+      endNotice({
+        ...record,
+        stderrTail: record.logs
+          .tail()
+          .filter((line) => line.stream === "stderr")
+          .slice(-FAILURE_STDERR_LINES)
+          .map((line) => line.text),
+      })
     if (!record || record.notice !== "pending" || !send || !text) return false
     for (const delay of delays) {
       if (delay > 0) await Bun.sleep(delay)
@@ -185,7 +194,7 @@ export class MonitorManager {
         this.persist()
         return true
       } catch (err) {
-        console.error(`[sentinel] could not tell the agent how ${id} ended:`, err)
+        console.error(`[opencode-monitors] could not tell the agent how ${id} ended:`, err)
       }
     }
     record.notice = "dropped"
@@ -316,7 +325,7 @@ export class MonitorManager {
     try {
       this.store.save(records)
     } catch (err) {
-      console.error("[sentinel] could not save monitor state:", err)
+      console.error("[opencode-monitors] could not save monitor state:", err)
     }
   }
 
@@ -358,5 +367,5 @@ export class MonitorManager {
  * version when the manager's shape changes, so a reloaded copy with new code
  * does not adopt an old instance.
  */
-const MANAGER_KEY = Symbol.for("opencode-sentinel.manager.v1")
+const MANAGER_KEY = Symbol.for("opencode-monitors.manager.v1")
 export const manager: MonitorManager = ((globalThis as any)[MANAGER_KEY] ??= new MonitorManager())

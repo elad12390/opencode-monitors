@@ -272,7 +272,7 @@ describe("/monitors popup", () => {
       stop: async () => false,
     }
     await render(source)
-    const frame = await frameWhen((f) => f.includes("Can't reach the Sentinel server plugin"))
+    const frame = await frameWhen((f) => f.includes("Can't reach the opencode-monitors server plugin"))
     expect(frame).toContain("rpc.unavailable")
   })
 })

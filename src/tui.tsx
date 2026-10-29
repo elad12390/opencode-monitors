@@ -1,15 +1,15 @@
 /** @jsxImportSource @opentui/solid */
 import { Plugin } from "@opencode/plugin/tui"
-import { SentinelRpc } from "./rpc"
+import { MonitorsRpc } from "./rpc"
 import { MonitorsDialog, paletteFromTheme, type MonitorSource } from "./tui/MonitorsDialog"
 import type { LogLine, Monitor, Scope } from "./tui/model"
 
-export const MONITORS_COMMAND = "sentinel.monitors"
+export const MONITORS_COMMAND = "monitors.open"
 
 export default Plugin.define({
-  id: "opencode-sentinel.tui",
+  id: "opencode-monitors.tui",
   setup(context) {
-    const rpc = context.client.rpc(SentinelRpc)
+    const rpc = context.client.rpc(MonitorsRpc)
     const source: MonitorSource = {
       list: async () => ((await rpc.list({})) as { monitors: Monitor[] }).monitors,
       logs: async (id, limit) => ((await rpc.logs({ id, limit })) as { lines: LogLine[] }).lines,
@@ -48,7 +48,7 @@ export default Plugin.define({
           id: MONITORS_COMMAND,
           title: "Monitors",
           description: "See background monitors, read their logs and kill them",
-          group: "Sentinel",
+          group: "Monitors",
           palette: true,
           slash: { name: "monitors" },
           run: open,

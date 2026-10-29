@@ -38,7 +38,7 @@ afterEach(() => {
 
 async function crashHostWithMonitor(file: string) {
   const host = Bun.spawn([process.execPath, HOST], {
-    env: { ...process.env, SENTINEL_STATE_FILE: file },
+    env: { ...process.env, OPENCODE_MONITORS_STATE_FILE: file },
     stdout: "pipe",
   })
   const reader = host.stdout.getReader()
@@ -56,7 +56,7 @@ async function crashHostWithMonitor(file: string) {
 
 describe("OpenCode restarts", () => {
   test("after a crash, the next start kills the orphaned monitor and tells its session it must be restarted", async () => {
-    const file = path.join(tmpdir(), `sentinel-restart-${process.pid}-${Date.now()}.json`)
+    const file = path.join(tmpdir(), `monitors-restart-${process.pid}-${Date.now()}.json`)
     cleanups.push(() => rmSync(file, { force: true }))
 
     const { id, monitorPid, hostPid } = await crashHostWithMonitor(file)
@@ -95,7 +95,7 @@ describe("OpenCode restarts", () => {
   }, 15_000)
 
   test("a process that only reuses the monitor's PID is never killed", async () => {
-    const file = path.join(tmpdir(), `sentinel-reuse-${process.pid}-${Date.now()}.json`)
+    const file = path.join(tmpdir(), `monitors-reuse-${process.pid}-${Date.now()}.json`)
     cleanups.push(() => rmSync(file, { force: true }))
     const { monitorPid } = await crashHostWithMonitor(file)
     process.kill(-monitorPid, "SIGKILL")

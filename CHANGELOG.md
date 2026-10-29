@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [0.3.0] - 2026-10-29
+
+First release as **opencode-monitors**, a fork of opencode-sentinel 0.2.0.
+
+### Changed
+- Renamed the package to `opencode-monitors` and the tools to `monitor`, `stop_monitor` and `list_monitors`. `sentinel_ping` and `sentinel_spike` are gone.
+- `stop_monitor` takes a monitor's description or its ID; an ambiguous or unknown name stops nothing and lists what is running.
+- Tool descriptions say what each tool does, why and when to use it, and how, in one paragraph each; results are plain sentences.
+- The state file moved to `~/.local/state/opencode-monitors/monitors.json` (`OPENCODE_MONITORS_STATE_FILE`). Commands also get `MONITOR_SESSION_ID`; `SENTINEL_SESSION_ID` is still set.
+- stderr is no longer written to `/tmp/sentinel-<id>-stderr.log`. It stays in memory, shows in `/monitors`, and its last lines are quoted when a command fails.
+
+### Added
+- `/monitors` popup (OpenCode 2): every monitor across projects with status, timing and line counts, its stdout and stderr, scrolling, kill with confirmation, and an All projects / This project filter.
+- The agent is told whenever a monitor ends: clean exit, failure, a kill from `/monitors`, plugin unload, or an OpenCode restart or crash, with the command when a restart may be wanted.
+- Restart recovery: monitors left running by a crashed OpenCode are killed (after checking the process still runs that command) and their sessions are told.
+- Test suites: integration (real processes, plugin copies, crashes), `/monitors` rendering, performance, and an npm package install test.
+
+### Fixed
+- A catastrophic `filter` or `until` regex froze OpenCode; patterns now run in a worker with a 250 ms limit per line.
+- A line with no newline grew memory without limit; lines are cut at 64K characters.
+- After a flood or `until` stop, leftover output threw "Monitor not found" errors.
+- OpenCode loads one plugin copy per open project; the copies now share one monitor list, so `/monitors` sees every monitor and one project's startup no longer kills another's monitors.
+
 ## [0.2.0] - 2026-10-16
 
 ### Added
@@ -70,6 +95,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tools: `sentinel_monitor`, `sentinel_stop`, `sentinel_list`, `sentinel_ping`, `sentinel_spike`.
 - Features: 200ms batching, flood protection (100 lines/sec auto-kill), stderr separation, auto cleanup on session end.
 
+[Unreleased]: https://github.com/elad12390/opencode-monitors/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/elad12390/opencode-monitors/releases/tag/v0.3.0
 [0.2.0]: https://github.com/tsukimiya/opencode-sentinel/releases/tag/v0.2.0
 [0.1.5]: https://github.com/tsukimiya/opencode-sentinel/releases/tag/v0.1.5
 [0.1.4]: https://github.com/tsukimiya/opencode-sentinel/releases/tag/v0.1.4

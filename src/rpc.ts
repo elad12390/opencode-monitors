@@ -53,8 +53,8 @@ const NOT_FOUND = {
 } as const
 
 /** Lets the /monitors view read monitors and their logs from the server, and stop them. */
-export const SentinelRpc = Rpc.define({
-  id: "sentinel",
+export const MonitorsRpc = Rpc.define({
+  id: "monitors",
   methods: {
     list: {
       input: { type: "object", properties: {}, additionalProperties: false },

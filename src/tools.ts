@@ -8,7 +8,7 @@ export const MONITOR = {
     "Runs a shell command in the background and sends each new line it prints to this session as a message, so you can react the moment something happens instead of polling or sleeping. " +
     "Use it to wait on ongoing output such as a log (tail -f app.log), a CI or PR status (gh run watch <id>) or a dev server crash; for a command whose only result is finishing, use a background shell job instead. " +
     "Give the command and a short description, narrow the lines with filter, stop on a matching line with until, and pipe grep with --line-buffered or lines arrive late. " +
-    "Lines arrive grouped every 200 ms, the monitor stops itself above 100 lines per second, and you are told when it ends (exit, kill or OpenCode restart) and whether to start it again. " +
+    "Lines arrive grouped every 200 ms, the monitor stops itself above 100 lines per second, and you are told when it ends (exit, kill or OpenCode restart) and whether to start it again, with its last stderr lines if it failed. " +
     "Stop it with stop_monitor once you have what you need; the user can see and kill it in /monitors.",
   params: {
     command: "The shell command to watch, e.g. tail -f server.log | grep --line-buffered ERROR",

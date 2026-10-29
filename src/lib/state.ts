@@ -42,9 +42,9 @@ export interface MonitorStore {
 }
 
 export function defaultStateFile(): string {
-  if (process.env.SENTINEL_STATE_FILE) return process.env.SENTINEL_STATE_FILE
+  if (process.env.OPENCODE_MONITORS_STATE_FILE) return process.env.OPENCODE_MONITORS_STATE_FILE
   const base = process.env.XDG_STATE_HOME || path.join(homedir(), ".local", "state")
-  return path.join(base, "opencode-sentinel", "monitors.json")
+  return path.join(base, "opencode-monitors", "monitors.json")
 }
 
 /**

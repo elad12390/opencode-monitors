@@ -33,10 +33,18 @@ export interface EndedMonitor {
   exitCode?: number | null
   signal?: string | null
   endedAt?: string
+  /** The command's last stderr lines, quoted when it fails. */
+  stderrTail?: readonly string[]
 }
+
+/** How many stderr lines a failure notice quotes. */
+export const FAILURE_STDERR_LINES = 5
 
 const restartHint = (monitor: EndedMonitor) =>
   ` If you still need it, start it again with monitor (command: ${JSON.stringify(monitor.command)}).`
+
+const lastStderr = (monitor: EndedMonitor) =>
+  monitor.stderrTail?.length ? ` Its last stderr lines:\n${monitor.stderrTail.join("\n")}` : ""
 
 export function endNotice(monitor: EndedMonitor): string | undefined {
   const name = `[monitor:${monitor.id}] "${monitor.description}"`
@@ -46,9 +54,9 @@ export function endNotice(monitor: EndedMonitor): string | undefined {
         return `${name} finished: the command exited with code 0. It is no longer running.`
       }
       if (monitor.signal) {
-        return `${name} ended: the command was killed by ${monitor.signal}. It is no longer running.${restartHint(monitor)}`
+        return `${name} ended: the command was killed by ${monitor.signal}. It is no longer running.${restartHint(monitor)}${lastStderr(monitor)}`
       }
-      return `${name} ended: the command exited with code ${monitor.exitCode ?? "unknown"}. It is no longer running.${restartHint(monitor)}`
+      return `${name} ended: the command exited with code ${monitor.exitCode ?? "unknown"}. It is no longer running.${restartHint(monitor)}${lastStderr(monitor)}`
     case "user":
       return `${name} was killed by the user from /monitors. It is no longer running.`
     case "unload":

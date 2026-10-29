@@ -69,11 +69,11 @@ async function until(condition: () => boolean | Promise<boolean>, ms = 3_000) {
   throw new Error("condition not met")
 }
 
-describe("sentinel RPC", () => {
-  test("registers the sentinel RPC with list, logs and stop", async () => {
+describe("monitors RPC", () => {
+  test("registers the monitors RPC with list, logs and stop", async () => {
     const h = host()
     cleanup = await v2Setup(h.ctx)
-    expect(h.definition.id).toBe("sentinel")
+    expect(h.definition.id).toBe("monitors")
     expect(Object.keys(h.definition.methods).sort()).toEqual(["list", "logs", "stop"])
   })
 

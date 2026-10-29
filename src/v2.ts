@@ -71,11 +71,11 @@ function asJson<T>(value: T): T {
 
 async function registerRpc(ctx: V2Context): Promise<() => void> {
   if (typeof ctx.rpc?.register !== "function") return () => {}
-  const { SentinelRpc } = await import("./rpc")
+  const { MonitorsRpc } = await import("./rpc")
   const notFound = (context: Parameters<RpcHandler>[1], id: string) =>
     context.error("not_found", `Monitor not found: ${id}`, { id })
 
-  const registration = await ctx.rpc.register(SentinelRpc, {
+  const registration = await ctx.rpc.register(MonitorsRpc, {
     // OpenCode validates the output against the schema and rejects a key that
     // is present with an undefined value, so send what JSON would carry.
     list: async () => ({ monitors: asJson(manager.all()) }),

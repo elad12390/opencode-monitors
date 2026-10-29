@@ -78,19 +78,18 @@ describe("startWatcher", () => {
     expect(proc).toBe(mockProc)
   })
 
-  test("passes SENTINEL_SESSION_ID to child process env", () => {
+  test("passes the session ID to the command as MONITOR_SESSION_ID (and SENTINEL_SESSION_ID)", () => {
     startWatcher({
       id: "mon_env",
-      command: 'echo "$SENTINEL_SESSION_ID"',
+      command: 'echo "$MONITOR_SESSION_ID"',
       sessionID: "ses_env_test",
       deliver,
       manager,
     })
 
     expect(spawnCalls.length).toBe(1)
-    expect(spawnCalls[0].options.env.SENTINEL_SESSION_ID).toBe(
-      "ses_env_test",
-    )
+    expect(spawnCalls[0].options.env.MONITOR_SESSION_ID).toBe("ses_env_test")
+    expect(spawnCalls[0].options.env.SENTINEL_SESSION_ID).toBe("ses_env_test")
   })
 
   test("batches multiple lines within 200ms into single deliver call", async () => {
@@ -150,22 +149,22 @@ describe("startWatcher", () => {
     expect(deliverCalls.length).toBe(2)
   })
 
-  test("writes stderr to /tmp/sentinel-{id}-stderr.log", () => {
-    startWatcher({
-      id: "mon_stderr",
-      command: "test",
-      sessionID: "ses_123",
-      deliver,
-      manager,
-    })
+  test("keeps stderr in the monitor's log, never on disk, and quotes it when the command fails", async () => {
+    register("mon_stderr")
+    startWatcher({ id: "mon_stderr", command: "test", sessionID: "ses_123", deliver, manager })
 
-    mockStderr.emit("data", Buffer.from("error output\n"))
+    mockStderr.emit("data", Buffer.from("warming up\nfatal: port 3000 in use\n"))
+    mockProc.emit("exit", 1)
+    await new Promise((r) => setTimeout(r, 50))
 
-    expect(appendFileSyncCalls.length).toBe(1)
-    expect(appendFileSyncCalls[0].path).toBe(
-      "/tmp/sentinel-mon_stderr-stderr.log",
+    expect(appendFileSyncCalls).toEqual([])
+    expect(manager.logs("mon_stderr")?.map((l) => [l.stream, l.text])).toEqual([
+      ["stderr", "warming up"],
+      ["stderr", "fatal: port 3000 in use"],
+    ])
+    expect(deliverCalls.at(-1)).toEndWith(
+      "Its last stderr lines:\nwarming up\nfatal: port 3000 in use",
     )
-    expect(appendFileSyncCalls[0].data).toContain("error output")
   })
 
   function register(id: string) {

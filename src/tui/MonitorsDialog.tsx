@@ -303,7 +303,7 @@ export function MonitorsDialog(props: {
 
       <Show when={error()}>
         <text fg={colors().error} wrapMode="word">
-          {`Can't reach the Sentinel server plugin: ${error()}. Check that opencode-sentinel is in the plugins list of opencode.json.`}
+          {`Can't reach the opencode-monitors server plugin: ${error()}. Check that opencode-monitors is in the plugins list of opencode.json.`}
         </text>
       </Show>
 

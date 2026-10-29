@@ -22,3 +22,4 @@ plugin.json
 # Scratch
 temp/
 tmp/
+dist

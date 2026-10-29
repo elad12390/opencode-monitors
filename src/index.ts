@@ -12,7 +12,7 @@ import { v2Setup } from "./v2"
  * provide (`@opencode-ai/plugin`, `@opencode-ai/sdk`, `zod`).
  */
 export default {
-  id: "opencode-sentinel",
+  id: "opencode-monitors",
 
   setup: v2Setup,
 
