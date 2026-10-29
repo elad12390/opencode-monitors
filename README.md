@@ -6,6 +6,10 @@
 
 Background monitors for [OpenCode](https://opencode.ai), like Claude Code's Monitor tool. The agent runs a command in the background, and every new line it prints arrives in the session as a message, so the agent reacts the moment something happens instead of polling or sleeping. You see every monitor, read its output and kill it with `/monitors`.
 
+[![OpenCode monitor demo: view live logs, filter by project, expand output, stop a monitor and see the agent notified](https://raw.githubusercontent.com/elad12390/opencode-monitors/main/docs/assets/monitors-demo.gif)](https://raw.githubusercontent.com/elad12390/opencode-monitors/main/docs/assets/monitors-demo.gif)
+
+*A real OpenCode session using fictional log entries; the local account name is redacted.* The popup shows all output, while matching lines notify the agent. Press `k` twice to stop a monitor. [View the popup up close](https://raw.githubusercontent.com/elad12390/opencode-monitors/main/docs/assets/monitors-popup.png).
+
 ```
 You:    Tail server.log and tell me the moment a 5xx shows up.
 Agent:  [starts a monitor on: tail -F server.log | grep --line-buffered " 5[0-9][0-9] "]
@@ -61,16 +65,16 @@ Type `/monitors`, or pick **Monitors** from the command palette.
 
 ## Safety and limits
 
-- A monitor runs your command with your user's permissions, like any shell command the agent runs. OpenCode's shell permission rules do not apply to it yet; see [the comparison](docs/claude-code-monitor-comparison.md).
+- A monitor runs your command with your user's permissions, like any shell command the agent runs. OpenCode's shell permission rules do not apply to it yet; see [the comparison](https://github.com/elad12390/opencode-monitors/blob/main/docs/claude-code-monitor-comparison.md).
 - Output is batched every 200 ms. A command printing more than 100 lines per second is stopped, with a notice.
 - `filter` and `until` run in a worker thread; a pattern that takes more than 250 ms on one line stops the monitor instead of freezing OpenCode. Lines over 64K characters are cut.
-- Output is kept in memory, never written to disk.
+- The popup's recent-output buffer is kept in memory. Lines delivered to the agent, and stderr excerpts in failure notices, can be saved in OpenCode's session history; avoid watching secrets.
 - Monitors are recorded in `~/.local/state/opencode-monitors/monitors.json` (override with `OPENCODE_MONITORS_STATE_FILE`). If OpenCode restarts or crashes, the next start kills the commands left running, after checking each process still runs that command, and tells each session that its monitor stopped.
 - The command gets the session's ID in `MONITOR_SESSION_ID`.
 
 ## How it compares with Claude Code
 
-[docs/claude-code-monitor-comparison.md](docs/claude-code-monitor-comparison.md) compares it feature by feature with Claude Code's Monitor tool and lists measured performance.
+[Compare it feature by feature with Claude Code's Monitor tool](https://github.com/elad12390/opencode-monitors/blob/main/docs/claude-code-monitor-comparison.md), including measured performance.
 
 ## Develop
 
@@ -81,12 +85,12 @@ bun run test              # unit tests
 bun run test:integration  # real processes, plugin copies, restarts
 bun run test:tui          # the /monitors popup, rendered and driven with key presses
 bun run test:perf         # latency, batching, flood, scale, hostile output
-bun run test:package      # packs the npm tarball, installs it and loads every entry point
+bun run test:package      # tests OpenCode's resolver, installs the tarball and loads every entry point
 ```
 
-To try a local checkout, point OpenCode at the folder: `"plugins": ["file:///path/to/opencode-monitors"]`. OpenCode loads its root `index.ts` and `tui.tsx`.
+To try a local checkout, run `bun install` and `bun run build`, then point OpenCode at the folder: `"plugins": ["file:///path/to/opencode-monitors"]`. OpenCode loads the server and built TUI through the package exports.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for how changes and releases work.
+See [CONTRIBUTING.md](https://github.com/elad12390/opencode-monitors/blob/main/CONTRIBUTING.md) for how changes and releases work.
 
 ## Credits
 

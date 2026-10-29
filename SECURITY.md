@@ -10,6 +10,6 @@ opencode-monitors runs shell commands that the agent asks it to run, with your u
 
 - OpenCode's shell permission rules do not yet apply to monitors.
 - The output of a monitored command is sent to the model. Treat logs and feeds from untrusted sources the way you would treat any untrusted text you paste into a chat.
-- Monitor output is kept in memory only. The state file (`~/.local/state/opencode-monitors/monitors.json`, mode 600) holds each monitor's command, description, process ID and status, not its output.
+- The plugin's recent-output buffer is kept in memory, but output delivered to the agent and stderr excerpts in failure notices can be stored in OpenCode's session history and sent to the model provider. The state file (`~/.local/state/opencode-monitors/monitors.json`, mode 600) holds each monitor's command, description, process ID and status, not its output.
 
 Releases are published from GitHub Actions with npm provenance, so you can check that a version was built from this repository.

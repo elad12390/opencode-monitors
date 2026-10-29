@@ -6,6 +6,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
+import Arborist from "@npmcli/arborist"
 
 const root = path.join(import.meta.dir, "..")
 const pkg = await Bun.file(path.join(root, "package.json")).json()
@@ -32,6 +33,26 @@ try {
   }
   const unwanted = files.filter((f) => /^(test|test-tui|test-integration|perf|scripts|tmp|docs)\//.test(f) || f.includes("node_modules"))
   if (unwanted.length) throw new Error(`the tarball has files users don't need: ${unwanted.join(", ")}`)
+
+  // OpenCode V2 installs plugins with Arborist running inside Bun, not `bun add`
+  // or the system npm CLI. Bun reports a Node version which can make its peer
+  // resolver select older OpenTUI packages. Exercise that path with the packed
+  // artifact before the host packages are present, as in a fresh installation.
+  const resolverProject = path.join(work, "resolver")
+  mkdirSync(resolverProject)
+  const resolver = new Arborist({
+    path: resolverProject,
+    audit: false,
+    ignoreScripts: true,
+    binLinks: true,
+    nodeVersion: "v26.3.0",
+  })
+  await resolver.reify({ add: [path.join(work, packed.filename)] })
+  const installed = path.join(resolverProject, "node_modules", pkg.name)
+  if (!(await Bun.file(path.join(installed, "src/index.ts")).exists())) {
+    throw new Error("OpenCode-style install did not produce the server entry point")
+  }
+  console.log("  OpenCode-style Bun/Arborist installation passed")
 
   const project = path.join(work, "project")
   mkdirSync(project)

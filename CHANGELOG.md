@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-10-29
+
+### Fixed
+- Fresh OpenCode 2 installs could fail to resolve conflicting OpenTUI peers. The package now uses the host-provided OpenTUI runtime without declaring conflicting optional peers.
+- Clarified that output delivered to an agent can be saved in OpenCode session history, even though the popup's output buffer stays in memory.
+
+### Added
+- A package test exercises OpenCode's Bun/Arborist dependency resolver with the packed artifact.
+- A demo of the popup and live monitor notifications, recorded in OpenCode with fictional log entries.
+
 ## [0.3.1] - 2026-10-29
 
 ### Changed
