@@ -103,13 +103,17 @@ describe("flood protection", () => {
 
 describe("scale", () => {
   test("50 monitors at 5 lines/s each lose nothing and keep the event loop responsive", async () => {
-    // Spawning 50 processes at once is a one-time burst (lifecycle.100-monitors
-    // measures it); this measures the server while they all stream.
-    const monitors = Array.from({ length: 50 }, () => watch(emitCommand({ count: 15, rate: 5 })))
+    // Each line generator is its own Bun process, and starting 50 of them at
+    // once saturates a small CI runner's CPU. That one-time cost belongs to the
+    // test harness (lifecycle.100-monitors measures the plugin's start cost),
+    // so measuring starts once every monitor is streaming.
+    const LINES = 25
+    const monitors = Array.from({ length: 50 }, () => watch(emitCommand({ count: LINES, rate: 5 })))
+    await waitFor(() => monitors.every((m) => m.lines().length >= 1), 10_000)
     const lag = trackEventLoopLag()
     const cpu = trackCpu()
 
-    const all = await waitFor(() => monitors.every((m) => m.lines().length === 15), 10_000)
+    const all = await waitFor(() => monitors.every((m) => m.lines().length === LINES), 15_000)
     const usage = cpu.stop()
     const lags = lag.stop()
     const latency = summarize(monitors.flatMap((m) => m.lines().map((l) => l.latencyMs)))
