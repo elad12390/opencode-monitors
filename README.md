@@ -6,9 +6,9 @@
 
 Background monitors for [OpenCode](https://opencode.ai), like Claude Code's Monitor tool. The agent runs a command in the background, and every new line it prints arrives in the session as a message, so the agent reacts the moment something happens instead of polling or sleeping. You see every monitor, read its output and kill it with `/monitors`.
 
-[![OpenCode monitor demo: view live logs, filter by project, expand output, stop a monitor and see the agent notified](https://raw.githubusercontent.com/elad12390/opencode-monitors/main/docs/assets/monitors-demo.gif)](https://raw.githubusercontent.com/elad12390/opencode-monitors/main/docs/assets/monitors-demo.gif)
+[![OpenCode monitor demo: view live logs, filter by project, expand output, stop a monitor and see the agent notified](https://raw.githubusercontent.com/elad12390/opencode-monitors/main/docs/assets/monitors-demo.gif?v=2)](https://raw.githubusercontent.com/elad12390/opencode-monitors/main/docs/assets/monitors-demo.gif?v=2)
 
-*A real OpenCode session using fictional log entries; the local account name is redacted.* The popup shows all output, while matching lines notify the agent. Press `k` twice to stop a monitor. [View the popup up close](https://raw.githubusercontent.com/elad12390/opencode-monitors/main/docs/assets/monitors-popup.png).
+*A real OpenCode session using fictional log entries; the local account name is redacted.* The popup shows all output, while matching lines notify the agent. Press `k` twice to stop a monitor. [View the popup up close](https://raw.githubusercontent.com/elad12390/opencode-monitors/main/docs/assets/monitors-popup.png?v=2).
 
 ```
 You:    Tail server.log and tell me the moment a 5xx shows up.
