@@ -103,9 +103,11 @@ describe("flood protection", () => {
 
 describe("scale", () => {
   test("50 monitors at 5 lines/s each lose nothing and keep the event loop responsive", async () => {
+    // Spawning 50 processes at once is a one-time burst (lifecycle.100-monitors
+    // measures it); this measures the server while they all stream.
+    const monitors = Array.from({ length: 50 }, () => watch(emitCommand({ count: 15, rate: 5 })))
     const lag = trackEventLoopLag()
     const cpu = trackCpu()
-    const monitors = Array.from({ length: 50 }, () => watch(emitCommand({ count: 15, rate: 5 })))
 
     const all = await waitFor(() => monitors.every((m) => m.lines().length === 15), 10_000)
     const usage = cpu.stop()
